@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ f.nom }}{% endblock %}
+{% block topbar_actions %}{% if can('achats.gerer') %}<a href="{{ url_for('tiers.fournisseur_edit', fid=f.id) }}" class="btn btn-ghost">{{ m.icon('edit', 15) }} Modifier</a><a href="{{ url_for('achats.nouveau') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouvel achat</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="page-sub mb-1">{{ f.telephone or '' }} · {{ f.adresse or '' }} · délai {{ f.delai_paiement_jours }} j{% if f.ninea %} · NINEA {{ f.ninea }}{% endif %}</div>
+<div class="kpi-grid">{{ m.kpi('Total acheté', stats.total|fcfa, 'bag', 'white', stats.nb ~ ' réceptions') }}{{ m.kpi('Poulets achetés', stats.poulets|nombre, 'bird', 'pale') }}{{ m.kpi('Payé', stats.paye|fcfa, 'wallet', 'p') }}{{ m.kpi('Reste à payer', stats.du|fcfa, 'alert', 'opale') }}</div>
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">Historique des achats</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>N°</th><th>Date</th><th>Échéance</th><th class="num">Total</th><th class="num">Payé</th><th class="num">Reste</th><th>Statut</th></tr></thead>
+  <tbody>{% for a in achats %}<tr><td><a class="link-orange" href="{{ url_for('achats.detail', aid=a.id) }}">{{ a.numero }}</a></td><td>{{ a.date|date_fr }}</td><td class="{{ 'text-danger fw-bold' if a.en_retard }}">{{ a.echeance|date_fr if a.echeance else '' }}</td><td class="num">{{ a.total_ttc|fcfa }}</td><td class="num">{{ a.montant_paye|fcfa }}</td><td class="num fw-bold">{{ a.solde|fcfa if a.solde else '' }}</td><td>{{ m.badge_statut(a.statut) }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div>
+{% if stats.du > 0 and can('decaissements.gerer') %}<div class="card"><div class="card-header"><div class="card-title">Payer le fournisseur</div></div>
+<form class="card-body" method="post" action="{{ url_for('tiers.fournisseur_payer', fid=f.id) }}" data-ajax>{{ m.ft() }}
+  <input class="form-control mb-1" name="montant" value="{{ stats.du|int }}" style="font-weight:700">
+  <select class="form-control mb-1" name="mode">{% for k, v in MODES.items() if k != 'credit' %}<option value="{{ k }}" {{ 'selected' if k == 'virement' }}>{{ v }}</option>{% endfor %}</select>
+  <select class="form-control mb-1" name="compte_id">{% for cp in comptes %}<option value="{{ cp.id }}" {{ 'selected' if cp.type_compte == 'banque' }}>{{ cp.nom }}</option>{% endfor %}</select>
+  <input class="form-control mb-1" name="reference" placeholder="Référence">
+  <p class="help mb-1">Affecté automatiquement aux factures les plus anciennes.</p><button class="btn btn-primary w-100" style="justify-content:center">Enregistrer le paiement</button></form></div>{% endif %}
+<div class="card"><div class="card-header"><div class="card-title">Paiements effectués</div></div><div class="card-body">
+{% for p in paiements %}<div class="flex-between" style="font-size:.82rem;padding:.3rem 0;border-bottom:1px dashed var(--border)"><span>{{ p.date|date_fr }} · {{ MODES.get(p.mode) }}</span><b>{{ p.montant|fcfa }}{{ ' (annulé)' if p.statut != 'valide' }}</b></div>{% else %}<span class="text-muted">Aucun paiement.</span>{% endfor %}</div></div>
+</div></div>
+{% endblock %}

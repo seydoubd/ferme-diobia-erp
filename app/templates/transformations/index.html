@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block page_title %}Transformation & découpe{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('transformations.nouvelle') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouvelle transformation</a>{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="kpi-grid">
+  {{ m.kpi('Poulets transformés', stats.nb|nombre, 'bird', 'p', 'opérations terminées affichées') }}
+  {{ m.kpi('Poids vif traité', stats.poids_vif|nombre ~ ' kg', 'scale', 'white') }}
+  {{ m.kpi('Poids obtenu', stats.poids_obtenu|nombre ~ ' kg', 'box', 'white') }}
+  {{ m.kpi('Rendement moyen', stats.rendement|nombre ~ ' %', 'trend', 'orange') }}
+  {% if F %}{{ m.kpi('Frais de transformation', stats.frais|fcfa, 'card', 'white') }}{{ m.kpi('Pertes de poids valorisées', stats.pertes|fcfa, 'alert', 'opale', 'incluses dans le coût des produits') }}{% endif %}
+</div>
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>N°</th><th>Date</th><th>Responsable</th><th class="num">Poulets</th><th class="num">Poids vif</th><th class="num">Poids obtenu</th><th class="num">Rendement</th>{% if F %}<th class="num">Coût total</th><th class="num">Coût / kg</th>{% endif %}<th>Statut</th></tr></thead>
+  <tbody>{% for t in ts %}<tr class="{{ 'row-muted' if t.statut == 'annulee' }}">
+    <td><a class="link-orange" href="{{ url_for('transformations.detail', tid=t.id) }}">{{ t.numero }}</a></td><td class="nowrap">{{ t.date|date_fr(true) }}</td><td>{{ t.responsable or '' }}</td>
+    <td class="num">{{ t.nb_poulets }}</td><td class="num">{{ t.poids_vif_total|nombre }} kg</td><td class="num">{{ t.poids_obtenu|nombre if t.poids_obtenu }}{{ ' kg' if t.poids_obtenu }}</td>
+    <td class="num">{% if t.rendement_pct %}<div class="mini-bar" style="justify-content:flex-end"><span>{{ t.rendement_pct|nombre }} %</span><div class="mini-bar-track"><div class="mini-bar-fill" style="width:{{ t.rendement_pct }}%;background:var(--p)"></div></div></div>{% endif %}</td>
+    {% if F %}<td class="num">{{ t.cout_total|fcfa if t.cout_total else '' }}</td><td class="num">{{ (t.cout_total / t.poids_obtenu)|fcfa if t.poids_obtenu else '' }}</td>{% endif %}
+    <td>{{ m.badge_statut(t.statut) }}</td></tr>
+  {% else %}<tr><td colspan="10">{{ m.empty('Aucune transformation. Lancez la première découpe.', 'knife') }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

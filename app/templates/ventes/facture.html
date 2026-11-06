@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Facture {{ v.numero }}</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>body{background:#fff}.doc-print{border:none}@page{margin:1.2cm}</style></head><body><div class="doc-print">
+<div class="doc-head"><div style="display:flex;gap:.75rem;align-items:center"><img src="{{ url_for('static', filename='images/icons/icon-96x96.png') }}" width="54" height="54" alt="">
+  <div><b style="font-size:1.3rem;color:var(--p)">{{ params.nom_entreprise }}</b><br><span style="font-size:.8rem;color:#666">{{ params.slogan }}<br>{{ params.adresse }} · {{ params.telephone }} · {{ params.email }}{% if params.ninea %}<br>NINEA {{ params.ninea }}{% endif %}{% if params.rccm %} · RCCM {{ params.rccm }}{% endif %}</span></div></div>
+  <div style="text-align:right"><div class="doc-title">FACTURE</div><b>{{ v.numero }}</b><br>Date : {{ v.date|date_fr }}<br>Échéance : {{ v.echeance|date_fr }}</div></div>
+{% if v.statut == 'annulee' %}<div class="callout callout-danger mb-1"><b>FACTURE ANNULÉE</b> – {{ v.motif_annulation }}</div>{% endif %}
+<div class="facture-to" style="max-width:340px;margin-left:auto;margin-bottom:1rem"><div class="client-label">Facturé à</div><div class="client-name">{{ v.client.nom }}</div><div class="client-type">{{ v.client.adresse or '' }}<br>{{ v.client.telephone or '' }}</div></div>
+<table class="table"><thead><tr><th>Désignation</th><th class="num">Quantité</th><th class="num">Prix unitaire</th><th class="num">Remise</th><th class="num">Montant HT</th></tr></thead><tbody>
+{% for l in v.lignes %}<tr><td>{{ l.produit.nom }}</td><td class="num">{{ l.quantite|nombre }} {{ l.produit.unite }}</td><td class="num">{{ l.prix_unitaire|fcfa }}</td><td class="num">{{ (l.remise_pct|nombre ~ ' %') if l.remise_pct }}</td><td class="num">{{ l.montant_ht|fcfa }}</td></tr>{% endfor %}
+{% if v.frais_livraison %}<tr><td>Frais de livraison</td><td></td><td></td><td></td><td class="num">{{ v.frais_livraison|fcfa }}</td></tr>{% endif %}
+</tbody></table>
+<div style="max-width:320px;margin-left:auto" class="summary mt-1">
+  {% if v.remise_globale %}<div class="summary-row"><span>Remise globale</span><b>- {{ v.remise_globale|fcfa }}</b></div>{% endif %}
+  <div class="summary-row"><span>Total HT</span><b>{{ v.total_ht|fcfa }}</b></div>{% if v.tva %}<div class="summary-row"><span>TVA</span><b>{{ v.tva|fcfa }}</b></div>{% endif %}
+  <div class="summary-row total"><span>TOTAL</span><span>{{ v.total_ttc|fcfa }}</span></div>
+  <div class="summary-row"><span>Déjà réglé</span><b>{{ v.montant_paye|fcfa }}</b></div>{% if v.montant_avoirs %}<div class="summary-row"><span>Avoirs</span><b>- {{ v.montant_avoirs|fcfa }}</b></div>{% endif %}
+  <div class="summary-row" style="font-size:1.05rem;color:var(--orange-dark)"><span><b>RESTE À PAYER</b></span><b>{{ v.solde|fcfa }}</b></div></div>
+<p style="margin-top:2rem;font-size:.8rem;color:#666;border-top:2px solid var(--p-pale);padding-top:.75rem">{{ params.mentions_facture }}</p>
+</div><script>window.onload=()=>window.print()</script></body></html>

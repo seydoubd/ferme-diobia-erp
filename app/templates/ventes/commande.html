@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block page_title %}Commande {{ c.numero }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('ventes.bon_livraison', cid=c.id) }}" target="_blank" class="btn btn-ghost">{{ m.icon('print', 15) }} Bon de livraison</a>{% endblock %}
+{% block content %}
+{% set etapes = [('attente','Reçue'),('confirmee','Confirmée · stock réservé'),('preparation','En préparation'),('livree','Livrée · facturée')] %}
+{% set idx = {'attente':0,'confirmee':1,'preparation':2,'livree':3}.get(c.statut, -1) %}
+<div class="card"><div class="card-body flex" style="gap:0;justify-content:space-between">{% for k, l in etapes %}
+  <div style="flex:1;text-align:center"><div style="width:30px;height:30px;border-radius:50%;margin:0 auto .35rem;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:{{ 'var(--p)' if loop.index0 <= idx else 'var(--border)' }}">{{ loop.index }}</div><div style="font-size:.76rem;font-weight:700;color:{{ 'var(--p)' if loop.index0 <= idx else 'var(--gray)' }}">{{ l }}</div></div>{% endfor %}
+</div>{% if c.statut == 'annulee' %}<div class="callout callout-danger" style="margin:0 1rem 1rem">Commande annulée. {{ c.note or '' }}</div>{% endif %}</div>
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">{{ c.client.nom }}</div>{{ m.badge_statut(c.statut) }}</div>
+<div class="card-body"><dl class="dl mb-1"><div><dt>Livraison prévue</dt><dd>{{ c.date_livraison_prevue|date_fr if c.date_livraison_prevue else '—' }}</dd></div><div><dt>Adresse</dt><dd>{{ c.adresse_livraison or '—' }}</dd></div>
+<div><dt>Entrepôt</dt><dd>{{ c.entrepot.nom }}</dd></div><div><dt>Livreur</dt><dd>{{ c.livreur.nom if c.livreur else '—' }}</dd></div>
+{% if c.vente %}<div><dt>Facture</dt><dd><a class="link-orange" href="{{ url_for('ventes.detail', vid=c.vente_id) }}">{{ c.vente.numero }}</a></dd></div>{% endif %}</dl></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Prix</th><th class="num">Montant</th>{% if c.statut == 'attente' %}<th class="num">Disponible</th>{% endif %}</tr></thead>
+<tbody>{% for l in c.lignes %}<tr><td>{{ l.produit.nom }}</td><td class="num">{{ l.quantite|nombre }} {{ l.produit.unite }}</td><td class="num">{{ l.prix_unitaire|fcfa }}</td><td class="num">{{ (l.quantite * l.prix_unitaire)|fcfa }}</td>
+{% if c.statut == 'attente' %}<td class="num {{ 'text-danger' if dispo[l.id] < l.quantite else 'text-vert' }}">{{ dispo[l.id]|nombre }}</td>{% endif %}</tr>{% endfor %}</tbody>
+<tfoot><tr><td colspan="3">Total (avec livraison {{ c.frais_livraison|fcfa }})</td><td class="num">{{ c.total|fcfa }}</td>{% if c.statut == 'attente' %}<td></td>{% endif %}</tr></tfoot></table></div></div>
+<div>
+{% if c.statut == 'attente' %}<form method="post" action="{{ url_for('ventes.commande_action', cid=c.id, action='confirmer') }}" data-ajax>{{ m.ft() }}<button class="btn btn-primary w-100 mb-1" style="justify-content:center">Confirmer et réserver le stock</button></form>{% endif %}
+{% if c.statut == 'confirmee' %}<div class="card"><form class="card-body" method="post" action="{{ url_for('ventes.commande_action', cid=c.id, action='preparer') }}" data-ajax>{{ m.ft() }}
+  <label class="form-label">Livreur</label><select class="form-control mb-1" name="livreur_id"><option value="">—</option>{% for l in livreurs %}<option value="{{ l.id }}">{{ l.nom }}</option>{% endfor %}</select>
+  <button class="btn btn-orange w-100" style="justify-content:center">Passer en préparation</button></form></div>{% endif %}
+{% if c.statut in ('confirmee', 'preparation') %}<div class="card"><div class="card-header"><div class="card-title">Livrer et facturer</div></div>
+<form class="card-body" method="post" action="{{ url_for('ventes.commande_action', cid=c.id, action='livrer') }}" data-ajax data-confirm="Confirmer la livraison ?" data-confirm-body="Une facture sera générée et le stock réservé sera sorti.">{{ m.ft() }}
+  <select class="form-control mb-1" name="mode">{% for k, v in MODES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'credit' }}>{{ v }}</option>{% endfor %}</select>
+  <input class="form-control mb-1" name="montant_paye" placeholder="Montant encaissé à la livraison">
+  <select class="form-control mb-1" name="compte_id"><option value="">Compte auto</option>{% for cp in comptes %}<option value="{{ cp.id }}">{{ cp.nom }}</option>{% endfor %}</select>
+  <button class="btn btn-primary w-100" style="justify-content:center">{{ m.icon('truck', 15) }} Marquer comme livrée</button></form></div>{% endif %}
+{% if c.statut not in ('livree', 'annulee') %}<form method="post" action="{{ url_for('ventes.commande_action', cid=c.id, action='annuler') }}" data-ajax data-confirm="Annuler la commande ?" data-confirm-body="La réservation de stock sera libérée." data-confirm-color="#E53935">{{ m.ft() }}<input type="hidden" name="motif" value="Annulation manuelle"><button class="btn btn-ghost w-100 text-danger" style="justify-content:center">Annuler la commande</button></form>{% endif %}
+</div></div>
+{% endblock %}

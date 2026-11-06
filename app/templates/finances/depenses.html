@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block page_title %}Dépenses{% endblock %}
+{% block content %}
+<div class="kpi-grid">
+  {{ m.kpi('Total payé', total|fcfa, 'card', 'white', 'sur la période') }}
+  {{ m.kpi('Charges opérationnelles', charges|fcfa, 'trend', 'opale', 'au compte de résultat') }}
+  {{ m.kpi('Frais incorporés au stock', incorporees|fcfa, 'knife', 'pale', 'abattage, main-d’œuvre (dans le coût des produits)') }}
+  {{ m.kpi('Investissements', invest|fcfa, 'box', 'white', 'immobilisations, hors charges') }}
+</div>
+<div class="grid-21">
+<div class="card">
+  <form class="filter-bar" method="get"><input type="date" name="debut" value="{{ debut }}" class="form-control"><input type="date" name="fin" value="{{ fin }}" class="form-control">
+    <select name="categorie" class="form-control"><option value="">Toutes catégories</option>{% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if request.args.get('categorie')|int == c.id }}>{{ c.nom }}</option>{% endfor %}</select><button class="btn btn-primary btn-xs">Filtrer</button></form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Date</th><th>N°</th><th>Catégorie</th><th>Description</th><th>Payé par</th><th class="num">Montant</th><th>Justificatif</th><th></th></tr></thead>
+    <tbody>{% for d in deps %}<tr class="{{ 'row-muted' if d.statut != 'valide' }}"><td class="nowrap">{{ d.date|date_fr }}</td><td class="mono">{{ d.numero }}</td>
+      <td><span class="badge {{ 'badge-blue' if d.categorie.nature == 'investissement' else ('badge-p' if d.incorporee_stock else 'badge-orange') }}">{{ d.categorie.nom }}</span></td>
+      <td>{{ d.description or '' }}{% if d.beneficiaire %} · {{ d.beneficiaire }}{% endif %}</td><td>{{ d.compte.nom if d.compte else '' }}</td><td class="num fw-bold">{{ d.montant|fcfa }}</td>
+      <td>{% if d.justificatif %}<a class="link-sm" target="_blank" href="{{ url_for('finances.justificatif', nom=d.justificatif) }}">Voir</a>{% endif %}</td>
+      <td>{% if d.statut == 'valide' and d.source == 'manuelle' %}<form method="post" action="{{ url_for('finances.depense_annuler', did=d.id) }}" data-ajax data-confirm="Annuler cette dépense ?" data-confirm-color="#E53935">{{ m.ft() }}<button class="btn btn-ghost btn-xs">{{ m.icon('undo', 12) }}</button></form>{% elif d.statut != 'valide' %}<span class="st st-gris">Annulée</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="8" class="text-muted">Aucune dépense.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div>
+<div class="card"><div class="card-header"><div class="card-title">Nouvelle dépense</div></div>
+<form class="card-body" method="post" action="{{ url_for('finances.depense_nouvelle') }}" enctype="multipart/form-data" data-ajax>{{ m.ft() }}
+  <div class="form-group"><label class="form-label">Catégorie</label><select class="form-control" name="categorie_id">{% for c in cats %}<option value="{{ c.id }}">{{ c.nom }}{{ ' (investissement)' if c.nature == 'investissement' }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Montant (FCFA)</label><input class="form-control" name="montant" required inputmode="decimal"></div>
+  <div class="form-group"><label class="form-label">Description</label><input class="form-control" name="description" placeholder="Facture Senelec octobre…"></div>
+  <div class="form-group"><label class="form-label">Bénéficiaire</label><input class="form-control" name="beneficiaire"></div>
+  <div class="form-grid"><div class="form-group"><label class="form-label">Payé depuis</label><select class="form-control" name="compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Mode</label><select class="form-control" name="mode">{% for k, v in MODES.items() if k != 'credit' %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div></div>
+  <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="datetime-local" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}"></div>
+  <div class="form-group"><label class="form-label">Justificatif (photo, PDF)</label><input class="form-control" type="file" name="justificatif" accept="image/*,.pdf" capture="environment"></div>
+  <button class="btn btn-primary w-100" style="justify-content:center">Enregistrer la dépense</button>
+  <p class="help mt-1">Les achats de poulets et de marchandises se saisissent dans <a class="link-sm" href="{{ url_for('achats.nouveau') }}">Achats</a>, pas ici.</p></form></div>
+<div class="card"><div class="card-header"><div class="card-title">Répartition</div></div><div class="chart-wrap" style="height:220px"><canvas id="ch-dep"></canvas></div></div>
+</div></div>
+{% endblock %}
+{% block scripts %}<script>window.addEventListener('load',()=>{chartDefaults();const d={{ repart|tojson }};new Chart(document.getElementById('ch-dep'),{type:'doughnut',data:{labels:d.map(x=>x.cle),datasets:[{data:d.map(x=>x.montant),backgroundColor:['#2E7D32','#F7941D','#81C784','#FFCC80','#1B5E20','#E07B00','#A5D6A7','#FFE0B2','#9CA3AF']}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom'}}}});});</script>{% endblock %}

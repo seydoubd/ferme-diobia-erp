@@ -1,0 +1,10 @@
+{% set p = request.path %}
+<div class="tabs no-print">
+  <a class="tab {{ 'active' if p == '/comptabilite/' }}" href="{{ url_for('compta.index') }}">Journaux & écritures</a>
+  <a class="tab {{ 'active' if 'grand-livre' in p }}" href="{{ url_for('compta.grand_livre') }}">Grand livre</a>
+  <a class="tab {{ 'active' if 'balance' in p }}" href="{{ url_for('compta.balance') }}">Balance & TVA</a>
+  <a class="tab {{ 'active' if 'etats' in p }}" href="{{ url_for('compta.etats') }}">Compte de résultat & bilan</a>
+  <a class="tab {{ 'active' if 'periodes' in p }}" href="{{ url_for('compta.periodes') }}">Périodes & clôture</a>
+  <a class="tab {{ 'active' if p.endswith('/plan') }}" href="{{ url_for('compta.plan') }}">Plan comptable</a>
+  {% if can('compta.gerer') %}<a class="tab {{ 'active' if p.endswith('/od') }}" href="{{ url_for('compta.od') }}">+ Écriture manuelle</a>{% endif %}
+</div>

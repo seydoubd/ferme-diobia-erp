@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block page_title %}Fournisseurs{% endblock %}
+{% block topbar_actions %}{% if can('achats.gerer') %}<a href="{{ url_for('tiers.fournisseur_edit') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouveau fournisseur</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>Fournisseur</th><th>Téléphone</th><th>Localisation</th><th class="num">Délai</th><th class="num">Total acheté</th><th class="num">Reste à payer</th><th class="num">Dont échu</th></tr></thead>
+  <tbody>{% for f in fs %}{% set d = dettes.get(f.id) %}<tr><td><a class="link-orange" href="{{ url_for('tiers.fournisseur_detail', fid=f.id) }}">{{ f.nom }}</a></td><td>{{ f.telephone or '' }}</td><td>{{ f.adresse or '' }}</td><td class="num">{{ f.delai_paiement_jours }} j</td>
+    <td class="num">{{ d.total|fcfa if d else '' }}</td><td class="num fw-bold {{ 'text-danger' if d and d.du > 0 }}">{{ d.du|fcfa if d and d.du else '' }}</td><td class="num text-danger">{{ d.retard|fcfa if d and d.retard else '' }}</td></tr>
+  {% else %}<tr><td colspan="7">{{ m.empty('Aucun fournisseur.', 'factory') }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

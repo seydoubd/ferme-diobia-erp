@@ -1,0 +1,9 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>{{ a.numero }}</title><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></head>
+<body style="background:#fff"><div class="doc-print">
+<div class="doc-head"><div><b style="font-size:1.2rem;color:var(--p)">{{ nom_entreprise }}</b></div><div style="text-align:right"><div class="doc-title">{{ 'BON DE COMMANDE' if a.statut == 'commande' else 'BON DE RÉCEPTION' }}</div><b>{{ a.numero }}</b><br>{{ a.date|date_fr }}</div></div>
+<p><b>Fournisseur :</b> {{ a.fournisseur.nom }} · {{ a.fournisseur.telephone or '' }} · {{ a.fournisseur.adresse or '' }}<br><b>Livraison :</b> {{ a.entrepot.nom }}</p>
+<table class="table mt-1"><thead><tr><th>Article</th><th class="num">Quantité</th><th class="num">Prix unitaire</th><th class="num">Montant</th></tr></thead><tbody>
+{% for l in a.lignes %}<tr><td>{{ l.produit.nom }}</td><td class="num">{{ l.quantite|nombre }} {{ l.produit.unite }}</td><td class="num">{{ l.prix_unitaire|fcfa }}</td><td class="num">{{ l.montant|fcfa }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td colspan="3">Total marchandises</td><td class="num">{{ a.total_marchandises|fcfa }}</td></tr></tfoot></table>
+<p class="mt-2" style="display:flex;justify-content:space-between"><span>Signature fournisseur</span><span>Signature {{ nom_entreprise }}</span></p>
+</div><script>window.print()</script></body></html>

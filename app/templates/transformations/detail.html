@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block page_title %}Transformation {{ t.numero }}{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="kpi-grid">
+  {{ m.kpi('Poulets', t.nb_poulets, 'bird', 'p', t.produit_source.nom) }}
+  {{ m.kpi('Poids vif', t.poids_vif_total|nombre ~ ' kg', 'scale', 'white') }}
+  {{ m.kpi('Poids obtenu', (t.poids_obtenu|nombre ~ ' kg') if t.poids_obtenu else '—', 'box', 'white') }}
+  {{ m.kpi('Rendement', (t.rendement_pct|nombre ~ ' %') if t.rendement_pct else '—', 'trend', 'orange', ('Pertes : ' ~ t.pertes_kg|nombre ~ ' kg') if t.pertes_kg else None) }}
+  {% if F %}{{ m.kpi('Coût matière', t.cout_matiere|fcfa, 'cash', 'white') }}{{ m.kpi('Coût total', t.cout_total|fcfa if t.cout_total else '—', 'cash', 'pale', ('Frais : ' ~ t.frais_total|fcfa) if t.frais_total else None) }}{% endif %}
+</div>
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">Informations</div>{{ m.badge_statut(t.statut) }}</div><div class="card-body"><dl class="dl">
+  <div><dt>Date</dt><dd>{{ t.date|date_fr(true) }}</dd></div><div><dt>Fin</dt><dd>{{ t.date_fin|date_fr(true) if t.date_fin else '—' }}</dd></div>
+  <div><dt>Origine</dt><dd>{{ t.entrepot_source.nom }}</dd></div><div><dt>Destination</dt><dd>{{ t.entrepot_dest.nom }}</dd></div>
+  <div><dt>Responsable</dt><dd>{{ t.responsable or '—' }}</dd></div><div><dt>Méthode de répartition</dt><dd>{{ METHODES.get(t.methode_repartition, '') if t.statut == 'terminee' else '—' }}</dd></div>
+  {% if t.note %}<div style="grid-column:1/-1"><dt>Note</dt><dd>{{ t.note }}</dd></div>{% endif %}
+</dl></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Lots de poulets utilisés</div></div><div class="card-body">
+  {% for s in t.sources %}<div class="flex-between" style="font-size:.84rem;padding:.3rem 0;border-bottom:1px dashed var(--border)"><a class="link-orange mono" href="{{ url_for('stocks.lot', lid=s.lot_id) }}">{{ s.lot.code }}</a><span>{{ s.quantite|nombre }} têtes{% if F %} × {{ s.cout_unitaire|fcfa }}{% endif %}</span></div>{% endfor %}
+</div></div></div>
+{% if t.statut == 'terminee' %}
+<div class="card"><div class="card-header"><div class="card-title">Produits obtenus</div></div><div class="table-wrap"><table class="table">
+  <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Poids</th><th class="num">Part du poids</th>{% if F %}<th class="num">Coût alloué</th><th class="num">Coût de revient unitaire</th><th class="num">Prix de vente détail</th><th class="num">Marge détail</th>{% endif %}<th>Lot créé</th></tr></thead>
+  <tbody>{% for tp in t.produits %}<tr><td class="fw-bold">{{ tp.produit.nom }}</td><td class="num">{{ tp.quantite|nombre }} {{ tp.produit.unite }}</td><td class="num">{{ tp.poids_kg|nombre }} kg</td><td class="num">{{ (tp.poids_kg / t.poids_obtenu * 100)|nombre(1) }} %</td>
+    {% if F %}<td class="num">{{ tp.cout_alloue|fcfa }}</td><td class="num fw-bold text-orange">{{ tp.cout_unitaire|fcfa }} / {{ tp.produit.unite }}</td><td class="num">{{ tp.produit.prix_detail|fcfa }}</td>
+    {% set mg = tp.produit.prix_detail - tp.cout_unitaire %}<td class="num {{ 'text-vert' if mg > 0 else 'text-danger' }} fw-bold">{{ mg|fcfa }}</td>{% endif %}
+    <td>{% if tp.lot %}<a class="link-orange mono" href="{{ url_for('stocks.lot', lid=tp.lot_id) }}">{{ tp.lot.code }}</a>{% endif %}</td></tr>{% endfor %}</tbody>
+  {% if F %}<tfoot><tr><td>Total</td><td></td><td class="num">{{ t.poids_obtenu|nombre }} kg</td><td class="num">100 %</td><td class="num">{{ t.cout_total|fcfa }}</td><td colspan="4"></td></tr></tfoot>{% endif %}
+</table></div></div>
+{% elif t.statut == 'en_cours' %}
+<form method="post" action="{{ url_for('transformations.terminer', tid=t.id) }}" data-ajax data-poids-vif="{{ t.poids_vif_total }}" data-cout-matiere="{{ t.cout_matiere }}">{{ m.ft() }}
+<input type="hidden" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}">
+{% include 'transformations/_sorties.html' %}
+<div class="form-actions"><button class="btn btn-primary btn-lg">Terminer et entrer les produits en stock</button></div></form>
+{% endif %}
+{% if t.statut != 'annulee' %}
+<form method="post" action="{{ url_for('transformations.annuler', tid=t.id) }}" class="mt-2" data-ajax data-confirm="Annuler cette transformation ?" data-confirm-body="Les poulets seront réintégrés au stock vivant et les écritures contre-passées. Impossible si des produits issus de cette transformation ont déjà été vendus." data-confirm-color="#E53935">{{ m.ft() }}
+  <input type="hidden" name="motif" value="Annulation manuelle"><button class="btn btn-ghost text-danger">Annuler la transformation</button></form>{% endif %}
+{% endblock %}

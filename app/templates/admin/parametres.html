@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block page_title %}Paramètres{% endblock %}
+{% block topbar_actions %}<a class="btn btn-ghost" href="{{ url_for('admin.utilisateurs') }}">{{ m.icon('users', 15) }} Utilisateurs</a>{% endblock %}
+{% block content %}
+<div class="grid-21">
+<form method="post" data-ajax>{{ m.ft() }}<div class="card"><div class="card-header"><div class="card-title">Entreprise (factures et documents)</div></div><div class="card-body"><div class="form-grid">
+  {% for k, lib in PARAMS %}<div class="form-group" {{ 'style=grid-column:1/-1' if k == 'mentions_facture' }}><label class="form-label">{{ lib }}</label><input class="form-control" name="{{ k }}" value="{{ params.get(k, '') }}"></div>{% endfor %}
+</div>
+<div class="section-title mt-2">Fiscalité et comptabilité</div><div class="form-grid">
+  <div class="form-group"><label class="chk"><input type="checkbox" name="tva_active" {{ 'checked' if params.get('tva_active') == '1' }}> TVA applicable sur les produits marqués « soumis à TVA »</label><div class="form-hint">Les produits avicoles non transformés sont en général exonérés : vérifiez votre régime avec votre comptable.</div></div>
+  <div class="form-group"><label class="form-label">Taux de TVA (%)</label><input class="form-control" name="tva_taux" value="{{ params.get('tva_taux', '18') }}"></div>
+  <div class="form-group"><label class="form-label">Taux d'IS pour le bénéfice estimé (%)</label><input class="form-control" name="taux_is" value="{{ params.get('taux_is', '30') }}"></div>
+  <div class="form-group"><label class="form-label">Alerte péremption (jours)</label><input class="form-control" name="alerte_peremption_jours" value="{{ params.get('alerte_peremption_jours', '2') }}"></div>
+  <div class="form-group" style="grid-column:1/-1"><label class="chk"><input type="checkbox" name="compta_validation_auto" {{ 'checked' if params.get('compta_validation_auto') == '1' }}> Valider automatiquement les écritures générées (sinon validation par le comptable)</label></div>
+</div></div><div class="card-footer"><button class="btn btn-primary">Enregistrer</button></div></div></form>
+<div>
+<div class="card"><div class="card-header"><div class="card-title">Données de démonstration</div></div><div class="card-body">
+  {% if demo.ventes %}<p class="help mb-1">Chargées : {{ demo.clients }} clients, {{ demo.ventes }} ventes, {{ demo.lots }} lots. Elles sont marquées « démo » et se suppriment sans toucher au catalogue ni aux paramètres.</p>
+  <form method="post" action="{{ url_for('admin.demo') }}" data-confirm="Supprimer toutes les données de démonstration ?" data-confirm-body="Ventes, achats, stocks, écritures, clients et fournisseurs fictifs seront effacés. Opération irréversible." data-confirm-color="#E53935">{{ m.ft() }}<input type="hidden" name="action" value="supprimer"><button class="btn btn-danger w-100" style="justify-content:center">Supprimer les données de démo</button></form>
+  {% else %}<p class="help mb-1">Aucune donnée de démonstration. Vous pouvez en charger pour découvrir l'application (à éviter si vous avez déjà saisi des données réelles).</p>
+  <form method="post" action="{{ url_for('admin.demo') }}">{{ m.ft() }}<input type="hidden" name="action" value="charger"><button class="btn btn-ghost w-100" style="justify-content:center">Charger la démo</button></form>{% endif %}
+</div></div>
+<div class="card"><div class="card-header"><div class="card-title">Sauvegarde</div></div><div class="card-body"><p class="help mb-1">Téléchargez une copie complète de la base de données. Conseillé chaque semaine (clé USB, Google Drive).</p>
+<a class="btn btn-primary w-100" style="justify-content:center" href="{{ url_for('admin.sauvegarde') }}">{{ m.icon('download', 15) }} Télécharger une sauvegarde</a></div></div>
+<div class="card"><div class="card-body"><a class="link-orange" href="{{ url_for('auth.profil') }}">Changer mon mot de passe →</a></div></div>
+</div></div>
+{% endblock %}

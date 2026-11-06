@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block page_title %}Crédits & impayés{% endblock %}
+{% block content %}
+{% set tot_c = creances|sum(attribute='du') %}{% set tot_r = creances|sum(attribute='retard') %}
+<div class="kpi-grid kpi-lg">
+  {{ m.kpi('Créances clients', tot_c|fcfa, 'users', 'opale', creances|selectattr('du','gt',0.5)|list|length ~ ' clients débiteurs', 'Combien mes clients me doivent-ils ?') }}
+  {{ m.kpi('Dont échu', tot_r|fcfa, 'alert', 'danger' if tot_r else 'white', echues|length ~ ' factures en retard') }}
+  {% if dettes %}{{ m.kpi('Dettes fournisseurs', dettes|sum(attribute='du')|fcfa, 'factory', 'white', None, 'Combien dois-je à mes fournisseurs ?') }}
+  {{ m.kpi('Dont échu', dettes|sum(attribute='retard')|fcfa, 'alert', 'opale') }}{% endif %}
+</div>
+{% if echues %}<div class="alerte-creance-banner"><div class="fw-bold text-danger mb-1">Factures échues à relancer</div>
+  {% for v in echues %}<div class="alerte-creance-row"><span><a class="link-orange" href="{{ url_for('ventes.detail', vid=v.id) }}">{{ v.numero }}</a> · {{ v.client.nom }} · échéance {{ v.echeance|date_fr }}</span><span><b>{{ v.solde|fcfa }}</b> <span class="alerte-jour-badge">{{ (today() - v.echeance).days }} j de retard</span>
+  {% if v.client.telephone %}<a class="btn btn-whatsapp btn-xs" target="_blank" href="https://wa.me/{{ v.client.telephone|replace(' ','')|replace('+','') }}?text={{ ('Bonjour, sauf erreur, la facture ' ~ v.numero ~ ' de ' ~ nom_entreprise ~ ' reste due : ' ~ v.solde|fcfa ~ '. Merci de régulariser.')|urlencode }}">Relancer</a>{% endif %}</span></div>{% endfor %}</div>{% endif %}
+<div class="grid-2">
+<div class="card"><div class="card-header"><div class="card-title">Suivi des créances par client</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Client</th><th class="num">Ventes</th><th class="num">Encaissé</th><th class="num">Reste dû</th><th class="num">Échu</th><th>Échéance</th></tr></thead>
+  <tbody>{% for r in creances if r.du > 0.5 %}<tr><td><a class="link-orange" href="{{ url_for('tiers.client_detail', cid=r.client.id) }}">{{ r.client.nom }}</a></td><td class="num">{{ r.total|fcfa }}</td><td class="num">{{ r.encaisse|fcfa }}</td><td class="num fw-bold">{{ r.du|fcfa }}</td><td class="num text-danger">{{ r.retard|fcfa if r.retard else '' }}</td><td>{{ r.echeance|date_fr if r.echeance else '' }}</td></tr>{% else %}<tr><td colspan="6" class="text-muted">Aucune créance.</td></tr>{% endfor %}</tbody></table></div></div>
+{% if dettes %}<div class="card"><div class="card-header"><div class="card-title">Dettes fournisseurs</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Fournisseur</th><th class="num">Achats</th><th class="num">Payé</th><th class="num">Reste</th><th>Échéance</th></tr></thead>
+  <tbody>{% for r in dettes if r.du > 0.5 %}<tr><td><a class="link-orange" href="{{ url_for('tiers.fournisseur_detail', fid=r.fournisseur.id) }}">{{ r.fournisseur.nom }}</a></td><td class="num">{{ r.total|fcfa }}</td><td class="num">{{ r.paye|fcfa }}</td><td class="num fw-bold {{ 'text-danger' if r.retard }}">{{ r.du|fcfa }}</td><td>{{ r.echeance|date_fr if r.echeance else '' }}</td></tr>{% else %}<tr><td colspan="5" class="text-muted">Aucune dette.</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+</div>
+{% endblock %}

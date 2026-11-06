@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+instance/
+sauvegardes/
+logs/
+.venv/
+venv/
+.env
+.diobia.pid
+.pytest_cache/

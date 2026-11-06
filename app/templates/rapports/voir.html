@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ rep.titre }}{% endblock %}
+{% block topbar_actions %}<a class="btn btn-ghost" href="{{ url_for('rapports.voir', code=code, debut=debut, fin=fin, format='pdf') }}">{{ m.icon('download', 15) }} PDF</a><a class="btn btn-ghost" href="{{ url_for('rapports.voir', code=code, debut=debut, fin=fin, format='xlsx') }}">{{ m.icon('download', 15) }} Excel</a><button class="btn btn-ghost" onclick="print()">{{ m.icon('print', 15) }}</button>{% endblock %}
+{% block content %}
+{% macro cell(v, t) -%}{% if v is none or v == '' %}{% elif t == 'fcfa' %}{{ v|fcfa }}{% elif t == 'num' %}{{ v|nombre }}{% elif t == 'pct' %}{{ v|nombre(1) }} %{% elif t == 'date' %}{{ v|date_fr }}{% else %}{{ v }}{% endif %}{%- endmacro %}
+{% macro tableau(cols, lignes, total=None) -%}<div class="table-wrap"><table class="table table-compact"><thead><tr>{% for c in cols %}<th class="{{ 'num' if c.type in ('fcfa','num','pct') }}">{{ c.label }}</th>{% endfor %}</tr></thead>
+<tbody>{% for l in lignes %}<tr class="{{ 'row-title' if l[0] is string and l[0].isupper() and l[0]|length > 3 }}">{% for v in l %}<td class="{{ 'num' if cols[loop.index0].type in ('fcfa','num','pct') }}">{{ cell(v, cols[loop.index0].type) }}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ cols|length }}" class="text-muted">Aucune donnée sur la période.</td></tr>{% endfor %}</tbody>
+{% if total %}<tfoot><tr>{% for v in total %}<td class="{{ 'num' if cols[loop.index0].type in ('fcfa','num','pct') }}">{{ v if v == 'TOTAL' else cell(v, cols[loop.index0].type) }}</td>{% endfor %}</tr></tfoot>{% endif %}</table></div>{%- endmacro %}
+<form class="filter-bar card no-print" method="get" style="border-radius:12px;margin-bottom:1rem"><label>Du</label><input type="date" name="debut" value="{{ debut }}" class="form-control"><label>au</label><input type="date" name="fin" value="{{ fin }}" class="form-control"><button class="btn btn-primary btn-xs">Actualiser</button><span class="help" style="margin-left:auto">{{ rep.periode }}</span></form>
+<div class="card">{{ tableau(rep.colonnes, rep.lignes, rep.total) }}</div>
+{% for b in rep.blocs %}<div class="card"><div class="card-header"><div class="card-title">{{ b.titre }}</div></div>{{ tableau(b.colonnes, b.lignes) }}</div>{% endfor %}
+{% for n in rep.notes %}<p class="help">{{ n }}</p>{% endfor %}
+{% endblock %}

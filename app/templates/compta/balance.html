@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block page_title %}Balance générale{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+{{ m.filtre_periode(debut, fin) }}
+<div class="kpi-grid mt-1">{{ m.kpi('TVA collectée', tva.collectee|fcfa, 'file', 'white') }}{{ m.kpi('TVA déductible', tva.deductible|fcfa, 'file', 'white') }}{{ m.kpi('TVA à reverser', (tva.collectee - tva.deductible)|fcfa, 'cash', 'opale') }}
+{{ m.kpi('Équilibre', 'Équilibrée ✓' if (tot.debit - tot.credit)|abs < 1 else 'DÉSÉQUILIBRE', 'check', 'p' if (tot.debit - tot.credit)|abs < 1 else 'danger') }}</div>
+<div class="card"><div class="table-wrap"><table class="table table-compact"><thead><tr><th>Compte</th><th>Intitulé</th><th class="num">Mouvements débit</th><th class="num">Mouvements crédit</th><th class="num">Solde débiteur</th><th class="num">Solde créditeur</th></tr></thead>
+<tbody>{% set cl = namespace(v=0) %}{% for r in bal %}{% if r.classe != cl.v %}{% set cl.v = r.classe %}<tr class="row-title"><td colspan="6">Classe {{ r.classe }}</td></tr>{% endif %}
+<tr><td class="mono"><a class="link-orange" href="{{ url_for('compta.grand_livre', compte=r.numero, debut=debut, fin=fin) }}">{{ r.numero }}</a></td><td>{{ r.intitule }}</td><td class="num">{{ r.debit|fcfa }}</td><td class="num">{{ r.credit|fcfa }}</td><td class="num">{{ r.solde_debiteur|fcfa if r.solde_debiteur }}</td><td class="num">{{ r.solde_crediteur|fcfa if r.solde_crediteur }}</td></tr>{% endfor %}</tbody>
+<tfoot><tr><td colspan="2">Totaux</td><td class="num">{{ tot.debit|fcfa }}</td><td class="num">{{ tot.credit|fcfa }}</td><td class="num">{{ tot.solde_debiteur|fcfa }}</td><td class="num">{{ tot.solde_crediteur|fcfa }}</td></tr></tfoot></table></div></div>
+{% endblock %}

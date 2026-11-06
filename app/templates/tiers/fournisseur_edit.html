@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ f.nom or 'Nouveau fournisseur' }}{% endblock %}
+{% block content %}
+<form method="post" class="form-page" data-ajax style="max-width:720px">{{ m.ft() }}<div class="card"><div class="card-body"><div class="form-grid">
+  <div class="form-group" style="grid-column:1/-1"><label class="form-label">Nom *</label><input class="form-control" name="nom" value="{{ f.nom or '' }}" required></div>
+  <div class="form-group"><label class="form-label">Téléphone</label><input class="form-control" name="telephone" value="{{ f.telephone or '' }}"></div>
+  <div class="form-group"><label class="form-label">E-mail</label><input class="form-control" name="email" value="{{ f.email or '' }}"></div>
+  <div class="form-group"><label class="form-label">Adresse / localité</label><input class="form-control" name="adresse" value="{{ f.adresse or '' }}"></div>
+  <div class="form-group"><label class="form-label">NINEA</label><input class="form-control" name="ninea" value="{{ f.ninea or '' }}"></div>
+  <div class="form-group"><label class="form-label">Délai de paiement accordé (jours)</label><input class="form-control" name="delai_paiement_jours" value="{{ f.delai_paiement_jours or 0 }}"></div>
+</div></div><div class="card-footer"><a class="btn btn-ghost" href="{{ url_for('tiers.fournisseurs') }}">Annuler</a><button class="btn btn-primary">Enregistrer</button></div></div></form>
+{% endblock %}

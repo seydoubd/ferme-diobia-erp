@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block page_title %}Entrepôts & chambres froides{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set T = {'ferme': 'Ferme / élevage', 'chambre_froide': 'Chambre froide', 'magasin': 'Magasin / point de vente'} %}
+<div class="grid-21">
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>Nom</th><th>Type</th><th>Localisation</th>{% if can('finances.voir') %}<th class="num">Valeur du stock</th>{% endif %}<th>Statut</th></tr></thead>
+  <tbody>{% for e in es %}<tr><td class="fw-bold">{{ e.nom }}</td><td>{{ T.get(e.type_entrepot, e.type_entrepot) }}</td><td>{{ e.localisation or '' }}</td>{% if can('finances.voir') %}<td class="num">{{ vals[e.id]|fcfa }}</td>{% endif %}<td>{{ '<span class="st st-vert">Actif</span>'|safe if e.actif else '<span class="st st-gris">Inactif</span>'|safe }}</td></tr>{% else %}<tr><td colspan="5" class="text-muted">Aucun entrepôt : créez-en un pour commencer.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Ajouter un entrepôt</div></div>
+<form class="card-body" method="post" data-ajax>{{ m.ft() }}
+  <div class="form-group"><label class="form-label">Nom</label><input class="form-control" name="nom" required></div>
+  <div class="form-group"><label class="form-label">Type</label><select class="form-control" name="type_entrepot">{% for k, v in T.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Localisation</label><input class="form-control" name="localisation"></div>
+  <button class="btn btn-primary w-100" style="justify-content:center">Enregistrer</button>
+</form></div></div>
+{% endblock %}

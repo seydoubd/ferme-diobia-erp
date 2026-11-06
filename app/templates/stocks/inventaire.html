@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block page_title %}Inventaire {{ inv.numero }}{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<form method="post" data-ajax>{{ m.ft() }}
+<div class="card"><div class="card-header"><div class="card-title">{{ inv.entrepot.nom }} · {{ inv.date|date_fr(true) }}</div>{{ m.badge_statut(inv.statut) }}</div>
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Produit</th><th class="num">Théorique</th><th class="num" style="width:160px">Compté</th><th class="num">Écart</th>{% if F %}<th class="num">Valeur de l'écart</th>{% endif %}</tr></thead>
+  <tbody>{% for l in inv.lignes %}<tr><td class="fw-bold">{{ l.produit.nom }}</td><td class="num">{{ l.qte_theorique|nombre }} {{ l.produit.unite }}</td>
+    <td class="num">{% if inv.statut == 'brouillon' %}<input class="form-control" style="text-align:right" name="q_{{ l.id }}" value="{{ l.qte_physique|nombre }}" inputmode="decimal">{% else %}{{ l.qte_physique|nombre }}{% endif %}</td>
+    <td class="num fw-bold {{ 'text-danger' if l.ecart < 0 else ('text-vert' if l.ecart > 0) }}">{{ l.ecart|nombre if l.ecart else '' }}</td>{% if F %}<td class="num">{{ l.valeur_ecart|fcfa if l.valeur_ecart else '' }}</td>{% endif %}</tr>{% endfor %}</tbody>
+</table></div>
+{% if inv.statut == 'brouillon' %}<div class="card-footer"><button class="btn btn-ghost" name="action" value="enregistrer">Enregistrer le comptage</button>
+  <button class="btn btn-primary" name="action" value="valider">Valider et régulariser les écarts</button></div>{% endif %}
+</div></form>
+{% endblock %}

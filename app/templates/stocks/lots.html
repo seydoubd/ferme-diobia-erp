@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block page_title %}Lots & traçabilité{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<div class="card">
+  <form class="filter-bar" method="get">
+    <select name="produit" class="form-control"><option value="">Tous les produits</option>{% for p in produits %}<option value="{{ p.id }}" {{ 'selected' if request.args.get('produit')|int == p.id }}>{{ p.nom }}</option>{% endfor %}</select>
+    <select name="entrepot" class="form-control"><option value="">Tous les entrepôts</option>{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if request.args.get('entrepot')|int == e.id }}>{{ e.nom }}</option>{% endfor %}</select>
+    <label class="chk"><input type="checkbox" name="tous" value="1" {{ 'checked' if request.args.get('tous') }}> Inclure les lots épuisés</label>
+    <button class="btn btn-primary btn-xs">Filtrer</button>
+  </form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Lot</th><th>Produit</th><th>Entrepôt</th><th>Origine</th><th>Entrée</th><th>Péremption</th><th>État</th><th class="num">Initial</th><th class="num">Restant</th>{% if F %}<th class="num">Coût unitaire</th><th class="num">Valeur</th>{% endif %}</tr></thead>
+    <tbody>{% for l in lots %}<tr>
+      <td><a class="link-orange mono" href="{{ url_for('stocks.lot', lid=l.id) }}">{{ l.code }}</a></td><td>{{ l.produit.nom }}</td><td>{{ l.entrepot.nom }}</td>
+      <td><span class="badge badge-gray">{{ l.origine }}</span></td><td class="nowrap">{{ l.date_entree|date_fr }}</td>
+      <td class="nowrap">{% if l.date_peremption %}<span class="{{ 'text-danger fw-bold' if l.jours_avant_peremption is not none and l.jours_avant_peremption < 0 }}">{{ l.date_peremption|date_fr }}</span>{% endif %}</td>
+      <td>{{ m.badge_statut(l.etat) if l.etat in ('valide',) else l.etat }}</td>
+      <td class="num">{{ l.qte_initiale|nombre }}</td><td class="num fw-bold">{{ l.qte_restante|nombre }} {{ l.produit.unite }}</td>
+      {% if F %}<td class="num">{{ l.cout_unitaire|fcfa }}</td><td class="num">{{ l.valeur|fcfa }}</td>{% endif %}</tr>
+    {% else %}<tr><td colspan="11" class="text-muted">Aucun lot.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

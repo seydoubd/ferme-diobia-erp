@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block page_title %}Facture {{ v.numero }}{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('ventes.imprimer', vid=v.id) }}" target="_blank" class="btn btn-ghost">{{ m.icon('print', 15) }} Facture A4</a>
+<a href="{{ url_for('ventes.imprimer', vid=v.id, format='ticket') }}" target="_blank" class="btn btn-ghost">Reçu</a>
+<a href="{{ url_for('ventes.pdf', vid=v.id) }}" class="btn btn-ghost">{{ m.icon('download', 15) }} PDF</a>
+<a href="{{ wa }}" target="_blank" class="btn btn-whatsapp">{{ m.icon('whatsapp', 15) }} WhatsApp</a>
+{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+{% if request.args.get('nouveau') and can('ventes.creer') %}<div class="callout callout-p mb-1 flex-between"><span>✅ Vente enregistrée. Stock et {{ 'trésorerie' if v.montant_paye else 'créance client' }} mis à jour.</span><a class="btn btn-orange btn-xs" href="{{ url_for('ventes.nouvelle') }}">Vente suivante →</a></div>{% endif %}
+<div class="grid-21">
+<div>
+<div class="card"><div class="card-header"><div><div class="card-title">{{ v.client.nom }}</div><div class="page-sub">{{ v.client.telephone or '' }} · {{ v.client.adresse or '' }}</div></div>{{ m.statut_vente(v) }}</div>
+<div class="card-body"><dl class="dl" style="grid-template-columns:repeat(4,1fr)">
+  <div><dt>Date</dt><dd>{{ v.date|date_fr(true) }}</dd></div><div><dt>Échéance</dt><dd class="{{ 'text-danger' if v.en_retard }}">{{ v.echeance|date_fr }}</dd></div>
+  <div><dt>Canal</dt><dd>{{ 'Vente en gros' if v.canal == 'gros' else 'Vente au détail' }} · tarif {{ v.tarif }}</dd></div><div><dt>Entrepôt</dt><dd>{{ v.entrepot.nom }}</dd></div>
+  <div><dt>Vendeur</dt><dd>{{ v.user.nom if v.user else '' }}</dd></div>{% if v.commande_id %}<div><dt>Commande</dt><dd><a class="link-orange" href="{{ url_for('ventes.commande', cid=v.commande_id) }}">voir</a></dd></div>{% endif %}
+  {% if v.stock_force %}<div><dt>Stock</dt><dd class="text-danger">Vendu au-delà du stock (autorisé)</dd></div>{% endif %}
+</dl>{% if v.statut == 'annulee' %}<div class="callout callout-danger mt-1">Vente annulée : {{ v.motif_annulation }}</div>{% endif %}</div></div>
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Prix unitaire</th><th class="num">Remise</th><th class="num">Montant HT</th>{% if F %}<th class="num">Coût réel</th><th class="num">Marge</th>{% endif %}<th>Lots (FIFO)</th></tr></thead>
+  <tbody>{% for l in v.lignes %}<tr><td class="fw-bold">{{ l.produit.nom }}{% if l.qte_retournee %}<br><span class="st st-orange">{{ l.qte_retournee|nombre }} retourné</span>{% endif %}</td><td class="num">{{ l.quantite|nombre }} {{ l.produit.unite }}</td>
+    <td class="num">{{ l.prix_unitaire|fcfa }}{% if l.prix_unitaire != l.prix_suggere %}<br><span class="text-muted" style="font-size:.7rem">tarif {{ l.prix_suggere|fcfa }}</span>{% endif %}</td>
+    <td class="num">{{ (l.remise_pct|nombre ~ ' %') if l.remise_pct else '' }}</td><td class="num">{{ l.montant_ht|fcfa }}</td>
+    {% if F %}<td class="num">{{ l.cout_total|fcfa }}</td><td class="num fw-bold {{ 'text-vert' if l.montant_ht > l.cout_total else 'text-danger' }}">{{ (l.montant_ht - l.cout_total)|fcfa }}</td>{% endif %}
+    <td style="font-size:.72rem">{% for x in l.lots %}<a class="link-orange mono" href="{{ url_for('stocks.lot', lid=x.lot_id) }}">{{ x.lot.code }}</a> ({{ x.quantite|nombre }}){{ '<br>'|safe if not loop.last }}{% endfor %}</td></tr>{% endfor %}</tbody></table></div></div>
+{% if v.allocations or v.avoirs %}<div class="card"><div class="card-header"><div class="card-title">Règlements et avoirs</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Date</th><th>Pièce</th><th>Mode / motif</th><th class="num">Montant</th><th></th></tr></thead><tbody>
+  {% for a in v.allocations %}<tr class="{{ 'row-muted' if a.paiement.statut != 'valide' }}"><td>{{ a.paiement.date|date_fr(true) }}</td><td class="mono">{{ a.paiement.numero }}</td><td>{{ MODES.get(a.paiement.mode) }} · {{ a.paiement.compte.nom }}{% if a.paiement.reference %} · {{ a.paiement.reference }}{% endif %}{{ ' (annulé)' if a.paiement.statut != 'valide' }}</td><td class="num text-vert fw-bold">{{ a.montant|fcfa }}</td>
+    <td>{% if a.paiement.statut == 'valide' and can('encaissements.gerer') %}<form method="post" action="{{ url_for('tiers.paiement_annuler', pid=a.paiement_id) }}" data-ajax data-confirm="Annuler ce règlement ?" data-confirm-body="La trésorerie sera diminuée et la créance rétablie (remboursement client)." data-confirm-color="#E53935">{{ m.ft() }}<input type="hidden" name="motif" value="Remboursement"><button class="btn btn-ghost btn-xs">Annuler</button></form>{% endif %}</td></tr>{% endfor %}
+  {% for a in v.avoirs %}<tr><td>{{ a.date|date_fr(true) }}</td><td class="mono">{{ a.numero }}</td><td>Avoir · {{ a.motif }}{{ ' · remis en stock' if a.remise_en_stock }}</td><td class="num text-orange fw-bold">{{ a.montant_ttc|fcfa }}</td><td></td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+</div>
+<div>
+<div class="card"><div class="card-body"><div class="summary">
+  {% if v.remise_globale %}<div class="summary-row"><span class="muted">Remise globale</span><b>- {{ v.remise_globale|fcfa }}</b></div>{% endif %}
+  {% if v.frais_livraison %}<div class="summary-row"><span class="muted">Livraison</span><b>{{ v.frais_livraison|fcfa }}</b></div>{% endif %}
+  <div class="summary-row"><span class="muted">Total HT</span><b>{{ v.total_ht|fcfa }}</b></div>
+  {% if v.tva %}<div class="summary-row"><span class="muted">TVA</span><b>{{ v.tva|fcfa }}</b></div>{% endif %}
+  <div class="summary-row total"><span>Total</span><span>{{ v.total_ttc|fcfa }}</span></div>
+  <div class="summary-row"><span class="muted">Payé</span><b class="text-vert">{{ v.montant_paye|fcfa }}</b></div>
+  {% if v.montant_avoirs %}<div class="summary-row"><span class="muted">Avoirs</span><b class="text-orange">- {{ v.montant_avoirs|fcfa }}</b></div>{% endif %}
+  <div class="summary-row" style="font-size:1.05rem"><span>Reste dû</span><b class="{{ 'text-danger' if v.solde > 0 else 'text-vert' }}">{{ v.solde|fcfa }}</b></div>
+  {% if F %}<div class="summary-row mt-1"><span class="muted">Marge brute réelle</span><b class="text-p">{{ v.marge|fcfa }}</b></div>{% endif %}
+</div></div></div>
+{% if v.statut == 'valide' and v.solde > 0.5 and can('encaissements.gerer') %}
+<div class="card"><div class="card-header"><div class="card-title">Encaisser un règlement</div></div>
+<form method="post" action="{{ url_for('ventes.encaisser', vid=v.id) }}" class="card-body" data-ajax>{{ m.ft() }}
+  <div class="form-group"><label class="form-label">Montant (paiement partiel possible)</label><input class="form-control" name="montant" value="{{ v.solde|int }}" style="font-weight:700"></div>
+  <div class="form-grid"><select class="form-control" name="mode">{% for k, l in MODES.items() if k != 'credit' %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+  <select class="form-control" name="compte_id"><option value="">Compte auto</option>{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+  <input class="form-control mt-1" name="reference" placeholder="Référence">
+  <button class="btn btn-primary w-100 mt-1" style="justify-content:center">Enregistrer le règlement</button></form></div>{% endif %}
+{% if v.statut == 'valide' and can('ventes.annuler') %}
+<div class="card"><div class="card-header"><div class="card-title">Retour client (avoir)</div></div>
+<form method="post" action="{{ url_for('ventes.avoir', vid=v.id) }}" class="card-body" data-ajax data-confirm="Créer cet avoir ?">{{ m.ft() }}
+  <select class="form-control mb-1" name="ligne_id">{% for l in v.lignes %}<option value="{{ l.id }}">{{ l.produit.nom }} (max {{ (l.quantite - l.qte_retournee)|nombre }})</option>{% endfor %}</select>
+  <div class="form-grid"><input class="form-control" name="quantite" placeholder="Quantité"><select class="form-control" name="etat"><option value="frais">Revendable</option><option value="endommage">Endommagé</option></select></div>
+  <input class="form-control mt-1" name="motif" placeholder="Motif du retour" required>
+  <label class="chk mt-1"><input type="checkbox" name="remise_en_stock" value="1" checked> Remettre en stock</label>
+  <button class="btn btn-outline-orange w-100 mt-1" style="justify-content:center">Créer l'avoir</button></form></div>
+<form method="post" action="{{ url_for('ventes.annuler', vid=v.id) }}" data-ajax data-confirm="Annuler cette vente ?" data-confirm-body="Le stock sera réintégré et les écritures contre-passées. Les règlements éventuels doivent être annulés d'abord." data-confirm-color="#E53935">{{ m.ft() }}
+  <input class="form-control mb-1" name="motif" placeholder="Motif d'annulation (obligatoire)" required>
+  <button class="btn btn-ghost w-100 text-danger" style="justify-content:center">Annuler la vente</button></form>{% endif %}
+</div></div>
+{% endblock %}

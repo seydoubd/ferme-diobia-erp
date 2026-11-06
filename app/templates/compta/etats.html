@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block page_title %}États financiers{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+{{ m.filtre_periode(debut, fin) }}
+<div class="grid-2 mt-1">
+<div class="card"><div class="card-header"><div class="card-title">Compte de résultat (SYSCOHADA, ordre de présentation simplifié)</div></div><div class="table-wrap"><table class="table table-compact"><tbody>
+{% for ref, lib, v in cr.lignes %}<tr class="{{ 'row-title' if ref.startswith('X') }}"><td class="mono">{{ ref }}</td><td>{{ lib }}</td><td class="num {{ 'text-danger' if v < 0 and ref.startswith('X') }}">{{ v|fcfa }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Bilan au {{ fin|date_fr }}</div></div><div class="table-wrap"><table class="table table-compact">
+<thead><tr><th>Actif</th><th class="num">Montant</th></tr></thead><tbody>{% for l, v in bil.actif %}<tr><td>{{ l }}</td><td class="num">{{ v|fcfa }}</td></tr>{% endfor %}<tr class="row-total"><td>Total actif</td><td class="num">{{ bil.total_actif|fcfa }}</td></tr></tbody>
+<thead><tr><th>Passif</th><th class="num">Montant</th></tr></thead><tbody>{% for l, v in bil.passif %}<tr><td>{{ l }}</td><td class="num">{{ v|fcfa }}</td></tr>{% endfor %}<tr class="row-total"><td>Total passif</td><td class="num">{{ bil.total_passif|fcfa }}</td></tr></tbody></table></div>
+<div class="card-body">{% if (bil.total_actif - bil.total_passif)|abs < 1 %}<span class="st st-vert">Bilan équilibré</span>{% else %}<span class="st st-rouge">Écart {{ (bil.total_actif - bil.total_passif)|fcfa }}</span>{% endif %}</div></div>
+</div>
+<div class="card"><div class="card-header"><div class="card-title">Rapprochement des stocks physiques et comptables</div></div><div class="table-wrap"><table class="table table-compact"><thead><tr><th>Compte</th><th class="num">Valeur des lots</th><th class="num">Solde comptable</th><th class="num">Écart</th></tr></thead>
+<tbody>{% for r in rappro %}<tr><td>{{ r.compte }} · {{ r.libelle }}</td><td class="num">{{ r.physique|fcfa }}</td><td class="num">{{ r.comptable|fcfa }}</td><td class="num {{ 'text-danger fw-bold' if r.ecart|abs > 1 else 'text-vert' }}">{{ r.ecart|fcfa }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

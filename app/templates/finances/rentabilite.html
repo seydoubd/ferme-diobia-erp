@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block page_title %}Rentabilité{% endblock %}
+{% block topbar_actions %}<a class="btn btn-ghost" href="{{ url_for('rapports.voir', code='financier', debut=debut, fin=fin, format='pdf') }}">{{ m.icon('download', 15) }} PDF</a>{% endblock %}
+{% block content %}
+<form class="filter-bar card" method="get" style="border-radius:12px;margin-bottom:1rem">
+  <label>Du</label><input type="date" name="debut" value="{{ debut }}" class="form-control"><label>au</label><input type="date" name="fin" value="{{ fin }}" class="form-control">
+  <select name="canal" class="form-control"><option value="">Tous canaux</option><option value="gros" {{ 'selected' if filtres.canal == 'gros' }}>Gros</option><option value="detail" {{ 'selected' if filtres.canal == 'detail' }}>Détail</option></select>
+  <select name="entrepot" class="form-control"><option value="">Tous entrepôts</option>{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if filtres.entrepot_id == e.id }}>{{ e.nom }}</option>{% endfor %}</select>
+  <select name="client" class="form-control"><option value="">Tous clients</option>{% for c in clients_list %}<option value="{{ c.id }}" {{ 'selected' if filtres.client_id == c.id }}>{{ c.nom }}</option>{% endfor %}</select>
+  <button class="btn btn-primary btn-xs">Analyser</button>
+</form>
+{% if filtres %}<div class="callout callout-orange mb-1">Filtre actif : seules les marges sur ventes sont filtrées ; les charges et pertes ne sont pas réparties par canal ou client.</div>{% endif %}
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">Compte de résultat de gestion</div><span class="help">Marges calculées sur les coûts réels des lots (FIFO), pas sur le prix d'achat initial</span></div>
+<div class="table-wrap"><table class="table">
+  <tbody>
+  <tr><td>Chiffre d'affaires HT</td><td class="num fw-bold">{{ r.ca|fcfa }}</td></tr>
+  <tr><td>− Coût réel des marchandises vendues</td><td class="num">{{ (-r.cmv)|fcfa }}</td></tr>
+  <tr><td>− Pertes, mortalités, péremptions, écarts d'inventaire</td><td class="num text-danger">{{ (-r.pertes)|fcfa }}</td></tr>
+  <tr class="row-title"><td>MARGE BRUTE <span class="text-muted">({{ r.taux_marge|nombre }} %)</span></td><td class="num">{{ r.marge_brute|fcfa }}</td></tr>
+  {% for k, v in r.charges|dictsort %}<tr><td style="padding-left:1.5rem">− {{ k }}</td><td class="num">{{ (-v)|fcfa }}</td></tr>{% endfor %}
+  <tr class="row-total"><td>Total charges opérationnelles</td><td class="num">{{ (-r.total_charges)|fcfa }}</td></tr>
+  <tr class="row-title"><td>RÉSULTAT D'EXPLOITATION</td><td class="num">{{ r.resultat_exploitation|fcfa }}</td></tr>
+  <tr><td>− Impôt sur les sociétés estimé</td><td class="num">{{ (-r.impot_estime)|fcfa }}</td></tr>
+  <tr class="row-title"><td>RÉSULTAT NET ESTIMÉ</td><td class="num {{ 'text-danger' if r.resultat_net < 0 }}">{{ r.resultat_net|fcfa }}</td></tr>
+  </tbody></table></div>
+<div class="card-body help">Les frais d'abattage et de main-d'œuvre de transformation sont inclus dans le coût des produits vendus (ils ne sont pas comptés une seconde fois en charges). Les investissements ({{ r.investissements|fcfa }}) ne sont pas des charges. Encaissements de la période : {{ r.encaissements|fcfa }}.</div></div>
+<div class="card"><div class="card-header"><div class="card-title">Évolution sur 6 mois</div></div><div class="chart-wrap" style="height:320px"><canvas id="ch-m"></canvas></div></div>
+</div>
+
+<div class="card"><div class="card-header"><div class="card-title">Rentabilité réelle de chaque activité</div></div><div class="table-wrap"><table class="table">
+  <thead><tr><th>Circuit</th><th class="num">CA HT</th><th class="num">Coût réel</th><th class="num">Marge brute</th><th class="num">Taux</th><th class="num">Pertes</th><th class="num">Marge nette de pertes</th><th>Détail</th></tr></thead>
+  <tbody>{% for c in circuits %}<tr><td class="fw-bold">{{ c.cle }}</td><td class="num">{{ c.ca|fcfa }}</td><td class="num">{{ c.cout|fcfa }}</td><td class="num">{{ c.marge|fcfa }}</td><td class="num">{{ c.taux|nombre }} %</td><td class="num text-danger">{{ c.pertes|fcfa }}</td><td class="num fw-bold text-vert">{{ c.marge_nette|fcfa }}</td>
+  <td style="font-size:.76rem">{% if c.poulets_transformes is defined %}{{ c.poulets_transformes }} poulets transformés · rendement {{ c.rendement_moyen|nombre }} % · frais {{ c.frais_transformation|fcfa }}{% else %}{{ c.quantite|nombre }} poulets vendus{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+
+<div class="grid-2">
+<div class="card"><div class="card-header"><div class="card-title">Marge par produit</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">CA HT</th><th class="num">Coût réel</th><th class="num">Marge</th><th class="num">Taux</th></tr></thead>
+  <tbody>{% for p in produits %}<tr><td class="fw-bold">{{ p.cle }}</td><td class="num">{{ p.quantite|nombre }} {{ p.unite }}</td><td class="num">{{ p.ca|fcfa }}</td><td class="num">{{ p.cout|fcfa }}</td><td class="num fw-bold {{ 'text-vert' if p.marge > 0 else 'text-danger' }}">{{ p.marge|fcfa }}</td><td class="num">{{ p.taux|nombre }} %</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Marge par client</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Client</th><th class="num">Ventes</th><th class="num">CA HT</th><th class="num">Marge</th><th class="num">Taux</th></tr></thead>
+  <tbody>{% for p in clients[:15] %}<tr><td>{{ p.cle }}</td><td class="num">{{ p.nb_ventes }}</td><td class="num">{{ p.ca|fcfa }}</td><td class="num fw-bold">{{ p.marge|fcfa }}</td><td class="num">{{ p.taux|nombre }} %</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-header"><div class="card-title">Marge par canal de distribution</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Canal</th><th class="num">CA HT</th><th class="num">Marge</th><th class="num">Taux</th></tr></thead>
+  <tbody>{% for p in canaux %}<tr><td class="fw-bold">{{ p.cle }}</td><td class="num">{{ p.ca|fcfa }}</td><td class="num">{{ p.marge|fcfa }}</td><td class="num">{{ p.taux|nombre }} %</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Pertes valorisées</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Type</th><th>Produit</th><th class="num">Quantité</th><th class="num">Valeur</th></tr></thead>
+  <tbody>{% for p in pertes %}<tr><td>{{ p.type }}</td><td>{{ p.produit }}</td><td class="num">{{ p.quantite|nombre }}</td><td class="num text-danger">{{ p.valeur|fcfa }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">Aucune perte.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}
+{% block scripts %}<script>window.addEventListener('load',()=>{chartDefaults();const m={{ mensuel|tojson }},C=DIOBIA_COLORS;
+new Chart(document.getElementById('ch-m'),{data:{labels:m.map(x=>x.mois),datasets:[{type:'bar',label:'CA HT',data:m.map(x=>x.ca),backgroundColor:C.vert,borderRadius:4},{type:'bar',label:'Marge brute',data:m.map(x=>x.marge),backgroundColor:C.vertClair,borderRadius:4},{type:'line',label:'Résultat net',data:m.map(x=>x.resultat),borderColor:C.orange,backgroundColor:C.orange,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>nb(v/1000)+' k'}}}}});});</script>{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block page_title %}Inventaires physiques{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+<div class="grid-21">
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>N°</th><th>Date</th><th>Entrepôt</th><th>Statut</th><th class="num">Écarts</th><th class="num">Valeur des écarts</th><th></th></tr></thead>
+  <tbody>{% for i in invs %}<tr><td class="mono">{{ i.numero }}</td><td>{{ i.date|date_fr(true) }}</td><td>{{ i.entrepot.nom }}</td><td>{{ m.badge_statut(i.statut) }}</td>
+    <td class="num">{{ i.lignes|selectattr('ecart')|list|length }}</td><td class="num">{{ i.lignes|sum(attribute='valeur_ecart')|fcfa }}</td>
+    <td><a class="btn btn-ghost btn-xs" href="{{ url_for('stocks.inventaire', iid=i.id) }}">Ouvrir</a></td></tr>{% else %}<tr><td colspan="7" class="text-muted">Aucun inventaire.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Nouvel inventaire</div></div>
+<form class="card-body" method="post" action="{{ url_for('stocks.inventaire_nouveau') }}" data-ajax>{{ m.ft() }}
+  <div class="form-group"><label class="form-label">Entrepôt</label><select class="form-control" name="entrepot_id">{% for e in entrepots %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Note</label><input class="form-control" name="note" placeholder="Inventaire mensuel…"></div>
+  <p class="help mb-1">Les quantités théoriques sont reprises du système. Vous saisissez les quantités comptées ; à la validation, les écarts sont régularisés par des ajustements tracés et comptabilisés.</p>
+  <button class="btn btn-primary w-100" style="justify-content:center">Ouvrir l'inventaire</button>
+</form></div>
+</div>
+{% endblock %}

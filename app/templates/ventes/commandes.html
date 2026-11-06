@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block page_title %}Commandes & livraisons{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('ventes.commande_nouvelle') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouvelle commande</a>{% endblock %}
+{% block content %}
+{% set LIB = {'attente': 'En attente', 'confirmee': 'Confirmées', 'preparation': 'En préparation', 'livree': 'Livrées', 'annulee': 'Annulées'} %}
+<div class="kpi-grid">{% for k, v in LIB.items() %}<a href="?statut={{ k }}" style="text-decoration:none;color:inherit"><div class="kpi-card kpi-{{ 'p' if st == k else 'white' }}"><div class="kpi-body"><div class="kpi-label">{{ v }}</div><div class="kpi-value">{{ compteurs[k] }}</div></div></div></a>{% endfor %}</div>
+<div class="grid-21">
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Livraison prévue</th><th>Livreur</th><th class="num">Montant</th><th>Statut</th></tr></thead>
+  <tbody>{% for c in cmds %}<tr><td><a class="link-orange" href="{{ url_for('ventes.commande', cid=c.id) }}">{{ c.numero }}</a></td><td>{{ c.date|date_fr }}</td><td>{{ c.client.nom }}</td>
+    <td class="{{ 'text-danger fw-bold' if c.date_livraison_prevue and c.date_livraison_prevue < today() and c.statut in ('attente','confirmee','preparation') }}">{{ c.date_livraison_prevue|date_fr if c.date_livraison_prevue else '' }}</td>
+    <td>{{ c.livreur.nom if c.livreur else '' }}</td><td class="num">{{ c.total|fcfa }}</td><td>{{ m.badge_statut(c.statut) }}</td></tr>
+  {% else %}<tr><td colspan="7">{{ m.empty('Aucune commande.', 'truck') }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Livreurs</div></div><div class="card-body">
+  {% for l in livreurs %}<div style="font-size:.84rem;padding:.3rem 0;border-bottom:1px dashed var(--border)"><b>{{ l.nom }}</b> · {{ l.telephone or '' }}<br><span class="text-muted">{{ l.vehicule or '' }}</span></div>{% endfor %}
+  <form method="post" action="{{ url_for('ventes.livreur_save') }}" class="mt-1" data-ajax>{{ m.ft() }}
+    <input class="form-control mb-1" name="nom" placeholder="Nom" required><input class="form-control mb-1" name="telephone" placeholder="Téléphone"><input class="form-control mb-1" name="vehicule" placeholder="Véhicule">
+    <button class="btn btn-ghost w-100" style="justify-content:center">Ajouter un livreur</button></form>
+</div></div></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block page_title %}Nouvelle transformation{% endblock %}
+{% block content %}
+<form method="post" data-ajax>{{ m.ft() }}
+<div class="card"><div class="card-header"><div class="card-title">1. Poulets mis en transformation</div><span class="help">Ils sortent immédiatement du stock vivant.</span></div><div class="card-body">
+  <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+    <div class="form-group"><label class="form-label">Produit d'origine</label><select class="form-control" name="produit_source_id">{% for p in vivants %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Depuis l'entrepôt</label><select class="form-control" name="entrepot_source_id">{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if e.type_entrepot == 'ferme' }}>{{ e.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Lot d'origine</label><select class="form-control" name="lot_source_id"><option value="">Automatique (FIFO : plus ancien d'abord)</option>{% for l in lots_vivants %}<option value="{{ l.id }}">{{ l.code }} · {{ l.qte_restante|nombre }} têtes · {{ l.entrepot.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Nombre de poulets *</label><input class="form-control" name="nb_poulets" inputmode="numeric" required placeholder="100"></div>
+    <div class="form-group"><label class="form-label">Poids vif total (kg)</label><input class="form-control" name="poids_vif_total" inputmode="decimal" placeholder="calculé si vide"></div>
+    <div class="form-group"><label class="form-label">Produits stockés dans</label><select class="form-control" name="entrepot_dest_id">{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if e.type_entrepot == 'chambre_froide' }}>{{ e.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Responsable</label><input class="form-control" name="responsable" value="{{ current_user.nom }}"></div>
+    <div class="form-group"><label class="form-label">Date et heure</label><input class="form-control" type="datetime-local" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}"></div>
+  </div>
+  <label class="chk"><input type="checkbox" name="terminer" value="1" checked onchange="document.getElementById('etape2').style.display=this.checked?'':'none'"> La découpe est terminée : saisir maintenant les produits obtenus</label>
+</div></div>
+<div id="etape2">{% include 'transformations/_sorties.html' %}</div>
+<div class="form-actions"><a class="btn btn-ghost" href="{{ url_for('transformations.index') }}">Annuler</a><button class="btn btn-primary btn-lg">Valider la transformation</button></div>
+</form>
+{% endblock %}

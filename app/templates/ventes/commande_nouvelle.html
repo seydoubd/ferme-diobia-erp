@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block page_title %}Nouvelle commande client{% endblock %}
+{% block content %}
+<form method="post" data-ajax class="form-page" style="max-width:980px">{{ m.ft() }}
+<div class="card"><div class="card-body"><div class="form-grid">
+  <div class="form-group"><label class="form-label">Client</label><select class="form-control" name="client_id">{% for c in clients %}<option value="{{ c.id }}">{{ c.nom }} · {{ c.type_client }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Servie depuis</label><select class="form-control" name="entrepot_id">{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if e.type_entrepot == 'chambre_froide' }}>{{ e.nom }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Date de livraison prévue</label><input class="form-control" type="date" name="date_livraison_prevue"></div>
+  <div class="form-group"><label class="form-label">Frais de livraison</label><input class="form-control" name="frais_livraison" placeholder="0"></div>
+  <div class="form-group" style="grid-column:1/-1"><label class="form-label">Adresse de livraison</label><input class="form-control" name="adresse" placeholder="Par défaut : adresse du client"></div>
+</div></div></div>
+<div class="card" data-lines-wrap><div class="card-header"><div class="card-title">Produits commandés</div><button type="button" class="btn btn-ghost btn-xs" onclick="addLine('#lignes')">{{ m.icon('plus', 13) }} Ligne</button></div>
+<div class="card-body"><table class="lines-table" id="lignes"><thead><tr><th>Produit</th><th>Quantité</th><th>Prix unitaire (vide = tarif client)</th><th></th></tr></thead><tbody></tbody></table>
+<template><tr><td><select class="form-control" name="produit_id[]">{% for p in produits %}<option value="{{ p.id }}">{{ p.nom }} ({{ p.unite }})</option>{% endfor %}</select></td>
+<td><input class="form-control" name="quantite[]" inputmode="decimal"></td><td><input class="form-control" name="prix_unitaire[]" inputmode="decimal" {{ '' if can('ventes.prix_libre') else 'readonly placeholder="Tarif automatique"' }}></td><td><button type="button" class="btn-remove-line">{{ m.icon('x', 14) }}</button></td></tr></template></div></div>
+<div class="flex-between"><label class="chk"><input type="checkbox" name="confirmer" value="1" checked> Confirmer et réserver le stock maintenant</label>
+<button class="btn btn-primary btn-lg">Enregistrer la commande</button></div>
+</form>
+{% endblock %}
+{% block scripts %}<script>addLine('#lignes');</script>{% endblock %}

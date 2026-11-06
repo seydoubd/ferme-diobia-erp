@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block page_title %}Écriture manuelle{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+<form method="post" data-ajax id="f-od">{{ m.ft() }}<div class="card" data-lines-wrap><div class="card-body">
+  <div class="form-grid" style="grid-template-columns:160px 160px 1fr"><select class="form-control" name="journal">{% for j in journaux %}<option value="{{ j.code }}" {{ 'selected' if j.code == 'OD' }}>{{ j.code }} · {{ j.libelle }}</option>{% endfor %}</select>
+  <input class="form-control" type="date" name="date" value="{{ today() }}"><input class="form-control" name="libelle" placeholder="Libellé et justification (obligatoire)" required></div>
+  <table class="lines-table mt-1" id="lignes"><thead><tr><th>Compte</th><th>Libellé ligne</th><th>Débit</th><th>Crédit</th><th></th></tr></thead><tbody></tbody>
+  <tfoot><tr><td colspan="2" class="fw-bold">Totaux</td><td class="fw-bold" id="td">0</td><td class="fw-bold" id="tc">0</td><td></td></tr></tfoot></table>
+  <template><tr><td><select class="form-control" name="compte[]"><option value="">—</option>{% for c in comptes %}<option value="{{ c.numero }}">{{ c.numero }} · {{ c.intitule }}</option>{% endfor %}</select></td>
+  <td><input class="form-control" name="libelle[]"></td><td><input class="form-control" name="debit[]" inputmode="decimal"></td><td><input class="form-control" name="credit[]" inputmode="decimal"></td><td><button type="button" class="btn-remove-line">{{ m.icon('x', 14) }}</button></td></tr></template>
+  <button type="button" class="btn btn-ghost btn-xs mt-1" onclick="addLine('#lignes')">+ Ligne</button>
+</div><div class="card-footer"><span id="eq" class="help" style="margin-right:auto"></span><button class="btn btn-primary">Enregistrer (brouillard)</button></div></div></form>
+<p class="help">Réservé aux régularisations (dotations, corrections, à-nouveaux). Les opérations courantes sont comptabilisées automatiquement : ne les ressaisissez pas ici.</p>
+{% endblock %}
+{% block scripts %}<script>const f=document.getElementById('f-od');function t(){let d=0,c=0;f.querySelectorAll('[name="debit[]"]').forEach(i=>d+=num(i.value));f.querySelectorAll('[name="credit[]"]').forEach(i=>c+=num(i.value));
+document.getElementById('td').textContent=fcfa(d);document.getElementById('tc').textContent=fcfa(c);const e=document.getElementById('eq');e.textContent=Math.abs(d-c)<0.01&&d>0?'✓ Écriture équilibrée':'Écart : '+fcfa(d-c);e.style.color=Math.abs(d-c)<0.01&&d>0?'var(--p)':'var(--danger)';}
+f.addEventListener('input',t);addLine('#lignes');addLine('#lignes');</script>{% endblock %}

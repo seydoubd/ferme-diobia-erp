@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block page_title %}Nouvel achat{% endblock %}
+{% block content %}
+<form method="post" data-ajax id="f-achat">{{ m.ft() }}
+<div class="grid-21">
+<div>
+  <div class="card"><div class="card-body"><div class="form-grid">
+    <div class="form-group"><label class="form-label">Fournisseur *</label><select class="form-control" name="fournisseur_id" required>{% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}</select>
+      <div class="form-hint"><a class="link-sm" href="{{ url_for('tiers.fournisseur_edit') }}">+ Nouveau fournisseur</a></div></div>
+    <div class="form-group"><label class="form-label">Entrepôt de réception *</label><select class="form-control" name="entrepot_id">{% for e in entrepots %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="datetime-local" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}"></div>
+    <div class="form-group"><label class="form-label">N° de facture fournisseur</label><input class="form-control" name="reference_facture"></div>
+  </div></div></div>
+  <div class="card" data-lines-wrap><div class="card-header"><div class="card-title">Articles achetés</div><button type="button" class="btn btn-ghost btn-xs" onclick="addLine('#lignes')">{{ m.icon('plus', 13) }} Ligne</button></div>
+    <div class="card-body" style="overflow-x:auto"><table class="lines-table" id="lignes"><thead><tr><th style="min-width:200px">Produit</th><th>Quantité</th><th>Poids total (kg)</th><th>Prix unitaire</th><th class="num">Montant</th><th></th></tr></thead><tbody></tbody></table>
+    <template><tr>
+      <td><select class="form-control" name="produit_id[]">{% for p in produits %}<option value="{{ p.id }}" data-u="{{ p.unite }}">{{ p.nom }} ({{ p.unite }})</option>{% endfor %}</select></td>
+      <td><input class="form-control" name="quantite[]" inputmode="decimal" placeholder="500"></td>
+      <td><input class="form-control" name="poids_total[]" inputmode="decimal" placeholder="poulets vivants"></td>
+      <td><input class="form-control" name="prix_unitaire[]" inputmode="decimal" placeholder="2 500"></td>
+      <td class="line-total">0 FCFA</td><td><button type="button" class="btn-remove-line">{{ m.icon('x', 14) }}</button></td></tr></template>
+    </div></div>
+</div>
+<div>
+  <div class="card"><div class="card-header"><div class="card-title">Frais d'approche</div></div><div class="card-body">
+    <div class="form-group"><label class="form-label">Transport</label><input class="form-control" name="frais_transport" inputmode="decimal" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Autres frais (manutention, octroi…)</label><input class="form-control" name="autres_frais" inputmode="decimal" placeholder="0"></div>
+    <label class="chk mb-1"><input type="checkbox" name="frais_a_part" id="frais_a_part" onchange="document.getElementById('cf').style.display=this.checked?'':'none'"> Frais payés à part (transporteur)</label>
+    <div id="cf" style="display:none" class="form-group"><select class="form-control" name="compte_frais_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+    <p class="help">Les frais sont répartis sur les articles au prorata de leur valeur et intégrés au coût de revient des lots.</p>
+  </div></div>
+  <div class="card"><div class="card-body">
+    <div class="summary"><div class="summary-row"><span class="muted">Marchandises</span><b id="t-march">0 FCFA</b></div>
+      <div class="summary-row"><span class="muted">Frais</span><b id="t-frais">0 FCFA</b></div>
+      <div class="summary-row total"><span>Coût total</span><span id="t-total">0 FCFA</span></div>
+      <div class="summary-row"><span class="muted">Coût de revient / unité (1re ligne)</span><b id="t-cu" class="text-orange">—</b></div></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+    <label class="chk mb-1"><input type="checkbox" name="receptionner" value="1" checked onchange="document.getElementById('recep').style.display=this.checked?'':'none'"> Marchandise reçue : entrer en stock maintenant</label>
+    <div id="recep">
+      <div class="form-group"><label class="form-label">Mortalité constatée à la réception (têtes)</label><input class="form-control" name="mortalite" inputmode="numeric" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Échéance de paiement</label><input class="form-control" type="date" name="echeance"><div class="form-hint">Par défaut : délai du fournisseur.</div></div>
+      <div class="form-group"><label class="form-label">Paiement immédiat (optionnel)</label><input class="form-control" name="paiement_montant" inputmode="decimal" placeholder="0 = achat à crédit"></div>
+      <div class="form-grid"><select class="form-control" name="paiement_mode">{% for k, v in MODES.items() if k != 'credit' %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      <select class="form-control" name="paiement_compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-group mt-1"><label class="form-label">Note</label><input class="form-control" name="note"></div>
+    <button class="btn btn-primary btn-lg w-100" style="justify-content:center">Enregistrer l'achat</button>
+  </div></div>
+</div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script>
+const f = document.getElementById('f-achat');
+function calc(){let tm=0, first=null;
+  f.querySelectorAll('#lignes tbody tr').forEach(tr=>{const q=num(tr.querySelector('[name="quantite[]"]').value), p=num(tr.querySelector('[name="prix_unitaire[]"]').value);
+    tr.querySelector('.line-total').textContent=fcfa(q*p); tm+=q*p; if(first===null&&q) first={q,p};});
+  const fr=num(f.frais_transport.value)+num(f.autres_frais.value);
+  document.getElementById('t-march').textContent=fcfa(tm); document.getElementById('t-frais').textContent=fcfa(fr); document.getElementById('t-total').textContent=fcfa(tm+fr);
+  document.getElementById('t-cu').textContent = first && tm ? fcfa((first.q*first.p + fr*first.q*first.p/tm)/first.q) : '—';}
+f.addEventListener('input', calc); addLine('#lignes'); calc();
+</script>{% endblock %}

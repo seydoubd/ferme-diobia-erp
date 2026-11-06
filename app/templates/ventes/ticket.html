@@ -1,0 +1,8 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Reçu {{ v.numero }}</title>
+<style>body{font-family:ui-monospace,Menlo,monospace;font-size:12px;width:72mm;margin:0 auto;padding:4mm;color:#000}h1{font-size:15px;text-align:center;margin:0}.c{text-align:center}.r{text-align:right}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}hr{border:none;border-top:1px dashed #000}.t{font-size:14px;font-weight:bold}@page{size:80mm auto;margin:0}</style></head>
+<body><h1>{{ params.nom_entreprise }}</h1><div class="c">{{ params.adresse }}<br>{{ params.telephone }}</div><hr>
+<div>Reçu : {{ v.numero }}<br>{{ v.date|date_fr(true) }}<br>Client : {{ v.client.nom }}</div><hr>
+<table>{% for l in v.lignes %}<tr><td colspan="2">{{ l.produit.nom }}</td></tr><tr><td>{{ l.quantite|nombre }} {{ l.produit.unite }} × {{ l.prix_unitaire|fcfa(false) }}</td><td class="r">{{ l.montant_ht|fcfa(false) }}</td></tr>{% endfor %}
+{% if v.frais_livraison %}<tr><td>Livraison</td><td class="r">{{ v.frais_livraison|fcfa(false) }}</td></tr>{% endif %}</table><hr>
+<table><tr class="t"><td>TOTAL</td><td class="r">{{ v.total_ttc|fcfa }}</td></tr><tr><td>Payé</td><td class="r">{{ v.montant_paye|fcfa }}</td></tr><tr><td>Reste dû</td><td class="r">{{ v.solde|fcfa }}</td></tr></table><hr>
+<div class="c">Merci et à bientôt !<br>{{ params.slogan }}</div><script>window.onload=()=>window.print()</script></body></html>

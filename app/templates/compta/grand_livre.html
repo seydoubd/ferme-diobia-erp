@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block page_title %}Grand livre{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+<form class="filter-bar card" method="get" style="border-radius:12px;margin-bottom:1rem"><select name="compte" class="form-control"><option value="">Tous les comptes</option>{% for c in comptes %}<option value="{{ c.numero }}" {{ 'selected' if cpt == c.numero }}>{{ c.numero }} · {{ c.intitule }}</option>{% endfor %}</select>
+<input type="date" name="debut" value="{{ debut }}" class="form-control"><input type="date" name="fin" value="{{ fin }}" class="form-control"><button class="btn btn-primary btn-xs">Afficher</button></form>
+{% for c in gl %}<div class="card"><div class="card-header"><div class="card-title"><span class="mono">{{ c.numero }}</span> · {{ c.intitule }}</div><b class="{{ 'text-danger' if c.solde < 0 }}">Solde {{ c.solde|fcfa }}</b></div>
+<div class="table-wrap"><table class="table table-compact"><thead><tr><th>Date</th><th>Pièce</th><th>Jnl</th><th>Libellé</th><th class="num">Débit</th><th class="num">Crédit</th><th class="num">Solde</th></tr></thead>
+<tbody>{% for mv in c.mouvements[-80:] %}<tr><td>{{ mv.date|date_fr }}</td><td class="mono">{{ mv.numero }}</td><td>{{ mv.journal }}</td><td>{{ mv.libelle }}</td><td class="num">{{ mv.debit|fcfa if mv.debit }}</td><td class="num">{{ mv.credit|fcfa if mv.credit }}</td><td class="num">{{ mv.solde|fcfa }}</td></tr>{% endfor %}</tbody>
+<tfoot><tr><td colspan="4">Totaux{% if c.mouvements|length > 80 %} ({{ c.mouvements|length }} lignes, 80 dernières affichées){% endif %}</td><td class="num">{{ c.total_debit|fcfa }}</td><td class="num">{{ c.total_credit|fcfa }}</td><td class="num">{{ c.solde|fcfa }}</td></tr></tfoot></table></div></div>
+{% else %}<div class="card">{{ m.empty('Aucune écriture sur la période.', 'book') }}</div>{% endfor %}
+{% endblock %}

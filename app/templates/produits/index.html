@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block page_title %}Produits & tarifs{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('produits.edit') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouveau produit</a>{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="callout callout-p mb-2">Les produits de découpe ne sont jamais achetés séparément : ils naissent d'une <b>transformation</b> de poulets vivants et entrent en stock à leur coût de revient réel. Le « prix de revient » ci-dessous est un repère ; la marge réelle est calculée sur le coût FIFO des lots.</div>
+<div class="card"><div class="table-wrap"><table class="table">
+  <thead><tr><th>Code</th><th>Produit</th><th>Catégorie</th><th>Type</th><th>Unité</th>{% if F %}<th class="num">Coût réel moyen</th>{% endif %}<th class="num">Grossiste</th><th class="num">Revendeur</th><th class="num">Restaurant</th><th class="num">Particulier</th>{% if F %}<th class="num">Marge détail</th>{% endif %}<th class="num">Stock</th><th>Conservation</th><th></th></tr></thead>
+  <tbody>{% for p in produits %}
+  {% set cout = couts.get(p.id, p.prix_revient) %}
+  <tr class="{{ 'row-muted' if not p.actif }}">
+    <td class="mono">{{ p.code or '' }}</td><td class="fw-bold">{{ p.nom }}</td><td>{{ p.categorie.nom if p.categorie }}</td>
+    <td><span class="badge {{ 'badge-orange' if p.type_produit == 'vivant' else 'badge-p' }}">{{ TYPES[p.type_produit] }}</span></td><td>{{ p.unite }}</td>
+    {% if F %}<td class="num">{{ cout|fcfa }}</td>{% endif %}
+    <td class="num">{{ p.prix_gros|fcfa if p.vendable else '—' }}</td><td class="num">{{ p.prix_revendeur|fcfa if p.vendable else '—' }}</td>
+    <td class="num">{{ p.prix_restaurant|fcfa if p.vendable else '—' }}</td><td class="num">{{ p.prix_detail|fcfa if p.vendable else '—' }}</td>
+    {% if F %}<td class="num">{% if p.vendable and p.prix_detail %}{% set mg = p.prix_detail - cout %}<span class="{{ 'text-vert' if mg > 0 else 'text-danger' }} fw-bold">{{ mg|fcfa }}</span><br><span class="text-muted" style="font-size:.7rem">{{ (mg / p.prix_detail * 100)|round(1)|nombre }} %</span>{% endif %}</td>{% endif %}
+    <td class="num {{ 'text-danger fw-bold' if p.seuil_alerte and stocks[p.id] <= p.seuil_alerte }}">{{ stocks[p.id]|nombre }}</td>
+    <td>{{ (p.duree_conservation_jours ~ ' j') if p.duree_conservation_jours else '—' }}</td>
+    <td><a class="btn btn-ghost btn-xs" href="{{ url_for('produits.edit', pid=p.id) }}">{{ m.icon('edit', 13) }}</a></td>
+  </tr>{% endfor %}</tbody></table></div></div>
+
+<div class="card" id="categories"><div class="card-header"><div class="card-title">Catégories</div></div><div class="card-body">
+  <div class="grid-2">
+    <div>{% for c in categories %}<form method="post" action="{{ url_for('produits.categorie_save') }}" class="flex mb-1" data-ajax>{{ m.ft() }}<input type="hidden" name="id" value="{{ c.id }}">
+      <input class="form-control" name="nom" value="{{ c.nom }}" style="flex:1"><button class="btn btn-ghost btn-xs" name="action" value="maj">Renommer</button>
+      <button class="btn btn-ghost btn-xs text-danger" name="action" value="supprimer">{{ m.icon('x', 13) }}</button></form>{% endfor %}</div>
+    <form method="post" action="{{ url_for('produits.categorie_save') }}" data-ajax>{{ m.ft() }}
+      <div class="form-group"><label class="form-label">Nouvelle catégorie</label><input class="form-control" name="nom" required></div>
+      <div class="form-group"><label class="form-label">Description</label><input class="form-control" name="description"></div>
+      <button class="btn btn-primary">Ajouter</button></form>
+  </div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block page_title %}Comptabilité · SYSCOHADA révisé{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+{% if nb_brouillard and can('compta.gerer') %}<div class="callout callout-orange mb-1 flex-between"><span><b>{{ nb_brouillard }}</b> écriture(s) générée(s) automatiquement attendent votre validation.</span>
+<form method="post" action="{{ url_for('compta.valider') }}" data-ajax data-confirm="Valider toutes les écritures de la période affichée ?">{{ m.ft() }}<input type="hidden" name="tout" value="1"><input type="hidden" name="debut" value="{{ debut }}"><input type="hidden" name="fin" value="{{ fin }}"><button class="btn btn-primary btn-xs">Valider la période affichée</button></form></div>{% endif %}
+<div class="card">
+  <form class="filter-bar" method="get">
+    <a class="filter-btn {{ 'active' if not j }}" href="?debut={{ debut }}&fin={{ fin }}">Tous</a>{% for jr in journaux %}<a class="filter-btn {{ 'active' if j == jr.code }}" href="?journal={{ jr.code }}&debut={{ debut }}&fin={{ fin }}" title="{{ jr.libelle }}">{{ jr.code }} · {{ jr.libelle.replace('Journal des ','').replace('Journal de ','').replace('Journal ','') }}</a>{% endfor %}
+    <input type="hidden" name="journal" value="{{ j or '' }}"><input type="date" name="debut" value="{{ debut }}" class="form-control"><input type="date" name="fin" value="{{ fin }}" class="form-control">
+    <select name="statut" class="form-control"><option value="">Tous statuts</option><option value="brouillard" {{ 'selected' if request.args.get('statut') == 'brouillard' }}>Brouillard</option><option value="valide" {{ 'selected' if request.args.get('statut') == 'valide' }}>Validées</option></select>
+    <button class="btn btn-primary btn-xs">Filtrer</button></form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Date</th><th>N°</th><th>Jnl</th><th>Libellé</th><th>Comptes</th><th class="num">Débit</th><th class="num">Crédit</th><th>Statut</th></tr></thead>
+    <tbody>{% for e in ecr %}<tr><td class="nowrap">{{ e.date|date_fr }}</td><td><a class="link-orange mono" href="{{ url_for('compta.ecriture', eid=e.id) }}">{{ e.numero }}</a></td><td><span class="badge badge-p">{{ e.journal_code }}</span></td>
+      <td>{{ e.libelle }}{% if e.contre_passation_de %} <span class="st st-orange">contre-passation</span>{% endif %}</td>
+      <td class="mono" style="font-size:.72rem">{% for l in e.lignes %}{{ l.compte_numero }}{{ ' ' if not loop.last }}{% endfor %}</td>
+      <td class="num">{{ e.total_debit|fcfa }}</td><td class="num">{{ e.total_credit|fcfa }}</td><td>{{ m.badge_statut(e.statut) }}</td></tr>
+    {% else %}<tr><td colspan="8" class="text-muted">Aucune écriture.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<p class="help">Les écritures sont générées automatiquement à partir des opérations validées (achats, ventes, règlements, transformations, pertes, dépenses, paie). Une même opération ne peut jamais produire deux fois la même écriture. Les corrections passent par contre-passation : rien n'est supprimé.</p>
+{% endblock %}

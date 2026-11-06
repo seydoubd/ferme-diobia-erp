@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block page_title %}Trésorerie{% endblock %}
+{% block content %}
+{% set ICO = {'caisse': 'cash', 'banque': 'book', 'wave': 'wallet', 'orange_money': 'wallet'} %}
+<div class="kpi-grid kpi-lg">
+  {{ m.kpi('Trésorerie disponible', total|fcfa, 'wallet', 'p', "Combien d'argent ai-je en caisse et en banque ?") }}
+  {% for c in comptes if c.actif %}{{ m.kpi(c.nom, soldes[c.id]|fcfa, ICO[c.type_compte], 'orange' if c.type_compte == 'orange_money' else ('opale' if c.type_compte == 'wave' else 'white'), c.numero, None, url_for('finances.tresorerie', compte=c.id)) }}{% endfor %}
+</div>
+<div class="callout callout-p mb-2" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;font-size:.8rem">
+  <div><b>Chiffre d'affaires</b><br>{{ r.ca|fcfa }}<br><span class="text-muted">ventes facturées</span></div>
+  <div><b>Encaissements</b><br>{{ r.encaissements|fcfa }}<br><span class="text-muted">argent réellement reçu</span></div>
+  <div><b>Bénéfice</b><br>{{ r.resultat_net|fcfa }}<br><span class="text-muted">CA − coûts − charges</span></div>
+  <div><b>Trésorerie</b><br>{{ total|fcfa }}<br><span class="text-muted">disponible maintenant</span></div>
+</div>
+<div class="grid-21">
+<div class="card">
+  <form class="filter-bar" method="get"><select name="compte" class="form-control"><option value="">Tous les comptes</option>{% for c in comptes %}<option value="{{ c.id }}" {{ 'selected' if cid == c.id }}>{{ c.nom }}</option>{% endfor %}</select>
+    <input type="date" name="debut" value="{{ debut }}" class="form-control"><input type="date" name="fin" value="{{ fin }}" class="form-control"><button class="btn btn-primary btn-xs">Filtrer</button>
+    <span style="margin-left:auto;font-size:.78rem"><b class="text-vert">+ {{ entrees|fcfa }}</b> · <b class="text-danger">− {{ sorties|fcfa }}</b></span></form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Date</th><th>Compte</th><th>Libellé</th><th>Type</th><th class="num">Entrée</th><th class="num">Sortie</th><th></th></tr></thead>
+    <tbody>{% for mv in mvts %}<tr><td class="nowrap">{{ mv.date|date_fr(true) }}</td><td>{{ mv.compte.nom }}</td><td>{{ mv.libelle }}</td><td><span class="badge badge-gray">{{ mv.type_mvt }}</span></td>
+      <td class="num text-vert fw-bold">{{ mv.montant|fcfa if mv.montant > 0 else '' }}</td><td class="num text-danger fw-bold">{{ (-mv.montant)|fcfa if mv.montant < 0 else '' }}</td><td>{{ '✓' if mv.rapproche }}</td></tr>
+    {% else %}<tr><td colspan="7" class="text-muted">Aucun mouvement.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div>
+  {% if can('tresorerie.gerer') %}
+  <div class="card"><div class="card-header"><div class="card-title">Transfert entre comptes</div></div>
+  <form class="card-body" method="post" action="{{ url_for('finances.transfert') }}" data-ajax>{{ m.ft() }}
+    <div class="form-grid"><select class="form-control" name="src">{% for c in comptes %}<option value="{{ c.id }}">De : {{ c.nom }}</option>{% endfor %}</select>
+    <select class="form-control" name="dest">{% for c in comptes %}<option value="{{ c.id }}" {{ 'selected' if loop.index == 2 }}>Vers : {{ c.nom }}</option>{% endfor %}</select></div>
+    <input class="form-control mt-1" name="montant" placeholder="Montant" required><input class="form-control mt-1" name="libelle" placeholder="Libellé (ex. versement espèces en banque)">
+    <button class="btn btn-primary w-100 mt-1" style="justify-content:center">{{ m.icon('swap', 15) }} Transférer</button></form></div>
+  <div class="card"><div class="card-header"><div class="card-title">Rapprochements</div></div><div class="card-body">
+    {% for c in comptes %}<a class="flex-between" style="padding:.35rem 0;font-size:.84rem;text-decoration:none;color:inherit;border-bottom:1px dashed var(--border)" href="{{ url_for('finances.rapprochement', cid=c.id) }}"><span>{{ c.nom }}</span><span class="link-sm">Rapprocher →</span></a>{% endfor %}</div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Apport / nouveau compte</div></div><div class="card-body">
+    <form method="post" action="{{ url_for('finances.apport') }}" data-ajax class="mb-1">{{ m.ft() }}<div class="form-grid"><select class="form-control" name="compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select><input class="form-control" name="montant" placeholder="Montant"></div>
+      <input class="form-control mt-1" name="libelle" placeholder="Apport de l'associé"><button class="btn btn-ghost w-100 mt-1" style="justify-content:center">Enregistrer un apport</button></form>
+    <form method="post" action="{{ url_for('finances.compte_save') }}" data-ajax>{{ m.ft() }}<div class="form-grid"><input class="form-control" name="nom" placeholder="Nom (ex. Banque 2)" required>
+      <select class="form-control" name="type_compte"><option value="banque">Banque</option><option value="caisse">Caisse</option><option value="wave">Wave</option><option value="orange_money">Orange Money</option></select></div>
+      <input class="form-control mt-1" name="solde_initial" placeholder="Solde d'ouverture"><button class="btn btn-ghost w-100 mt-1" style="justify-content:center">Créer le compte</button></form>
+  </div></div>
+  {% endif %}
+</div></div>
+<div class="card"><div class="card-header"><div class="card-title">Prévision de trésorerie (60 jours)</div><span class="help">Trésorerie actuelle + créances à encaisser − dettes fournisseurs, selon les échéances</span></div>
+<div class="grid-2" style="gap:0"><div class="chart-wrap"><canvas id="ch-prev"></canvas></div>
+<div class="table-wrap"><table class="table table-compact"><thead><tr><th>Période</th><th class="num">Encaissements attendus</th><th class="num">Paiements prévus</th><th class="num">Solde prévisionnel</th></tr></thead>
+<tbody>{% for p in prev %}<tr><td>{{ p.periode }}</td><td class="num text-vert">{{ p.entrees|fcfa }}</td><td class="num text-danger">{{ p.sorties|fcfa }}</td><td class="num fw-bold {{ 'text-danger' if p.solde < 0 }}">{{ p.solde|fcfa }}</td></tr>{% endfor %}</tbody></table></div></div></div>
+{% endblock %}
+{% block scripts %}<script>window.addEventListener('load',()=>{chartDefaults();const p={{ prev|tojson }};
+new Chart(document.getElementById('ch-prev'),{type:'line',data:{labels:p.map(x=>x.periode),datasets:[{label:'Solde prévisionnel',data:p.map(x=>x.solde),borderColor:DIOBIA_COLORS.vert,backgroundColor:'rgba(46,125,50,.12)',fill:true,tension:.3},{label:'Paiements prévus',data:p.map(x=>x.sorties),type:'bar',backgroundColor:DIOBIA_COLORS.orange}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});});</script>{% endblock %}

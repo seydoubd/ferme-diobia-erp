@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block page_title %}Nouvelle vente{% endblock %}
+{% block content %}
+{% set prix_libre = can('ventes.prix_libre') %}
+<form method="post" data-ajax id="f-vente">{{ m.ft() }}
+<div class="grid-21">
+<div>
+  <div class="card"><div class="card-body"><div class="form-grid">
+    <div class="form-group"><label class="form-label">Client *</label>
+      <select class="form-control" name="client_id" id="client" required>{% for c in clients %}<option value="{{ c.id }}" data-tarif="{{ c.tarif }}" data-remise="{{ c.remise_defaut_pct or 0 }}" data-delai="{{ c.delai_paiement_jours }}" {{ 'selected' if client_id == c.id or (not client_id and c.nom == 'Client comptoir') }}>{{ c.nom }} · {{ c.type_client }}</option>{% endfor %}</select>
+      <div class="form-hint" id="client-info"></div></div>
+    <div class="form-group"><label class="form-label">Entrepôt / point de vente</label><select class="form-control" name="entrepot_id" id="entrepot">{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if e.type_entrepot == 'magasin' }}>{{ e.nom }}</option>{% endfor %}</select></div>
+  </div></div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Ajout rapide</div><span class="help">Touchez un produit pour l'ajouter</span></div><div class="card-body"><div class="flex" id="tiles">
+    {% for p in produits %}<button type="button" class="filter-btn" data-add="{{ p.id }}">{{ p.nom }} <span class="text-muted tile-stock" data-pid="{{ p.id }}"></span></button>{% endfor %}
+  </div></div></div>
+  <div class="card" data-lines-wrap><div class="card-header"><div class="card-title">Lignes de la vente</div><button type="button" class="btn btn-ghost btn-xs" onclick="addLine('#lignes')">{{ m.icon('plus', 13) }} Ligne</button></div>
+    <div class="card-body" style="overflow-x:auto"><table class="lines-table" id="lignes"><thead><tr><th style="min-width:180px">Produit</th><th>Quantité</th><th>Prix unitaire</th><th>Remise %</th><th class="num">Montant</th><th></th></tr></thead><tbody></tbody></table>
+    <template><tr>
+      <td><select class="form-control sel-p" name="produit_id[]"><option value="">— Produit —</option>{% for p in produits %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}</select><div class="stock-hint"></div></td>
+      <td><input class="form-control q" name="quantite[]" inputmode="decimal" style="width:95px"></td>
+      <td><input class="form-control pu" name="prix_unitaire[]" inputmode="decimal" style="width:110px" {{ '' if prix_libre else 'readonly' }}><div class="stock-hint tarif"></div></td>
+      <td><input class="form-control rem" name="remise_pct[]" inputmode="decimal" style="width:70px"></td>
+      <td class="line-total">0 FCFA</td><td><button type="button" class="btn-remove-line">{{ m.icon('x', 14) }}</button></td></tr></template>
+    </div></div>
+</div>
+<div>
+  <div class="card" style="position:sticky;top:70px"><div class="card-body">
+    <div class="summary">
+      <div class="summary-row"><span class="muted">Sous-total</span><b id="t-sous">0 FCFA</b></div>
+      <div class="summary-row"><span class="muted">Remise globale (FCFA)</span><input class="form-control" name="remise_globale" style="width:120px;text-align:right" inputmode="decimal" placeholder="0"></div>
+      <div class="summary-row"><span class="muted">Frais de livraison</span><input class="form-control" name="frais_livraison" style="width:120px;text-align:right" inputmode="decimal" placeholder="0"></div>
+      <div class="summary-row" id="row-tva" style="display:none"><span class="muted">TVA</span><b id="t-tva">0</b></div>
+      <div class="summary-row total"><span>Total à payer</span><span id="t-total">0 FCFA</span></div>
+    </div>
+    <div class="section-title mt-2">Paiement</div>
+    <div class="radio-group" style="grid-template-columns:repeat(3,1fr)">{% for k, v in MODES.items() %}<label class="radio-card {{ 'checked' if k == 'especes' }}" style="padding:.45rem .5rem"><input type="radio" name="mode" value="{{ k }}" {{ 'checked' if k == 'especes' }}><span class="radio-title" style="font-size:.74rem">{{ v }}</span></label>{% endfor %}</div>
+    <div id="bloc-paye" class="mt-1">
+      <div class="form-group"><label class="form-label">Montant reçu</label><input class="form-control" name="montant_paye" id="paye" inputmode="decimal" style="font-size:1.1rem;font-weight:700"><div class="form-hint" id="rendu"></div></div>
+      <div class="form-group"><label class="form-label">Compte</label><select class="form-control" name="compte_id" id="compte">{% for c in comptes %}<option value="{{ c.id }}" data-type="{{ c.type_compte }}">{{ c.nom }}</option>{% endfor %}</select></div>
+      <div class="form-group"><input class="form-control" name="reference" placeholder="Référence (n° transaction Wave, chèque…)"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Échéance (si crédit / reste dû)</label><input class="form-control" type="date" name="echeance" id="echeance"></div>
+    {% if can('ventes.sans_stock') %}<label class="chk mb-1"><input type="checkbox" name="forcer_stock" value="1"> Autoriser la vente au-delà du stock</label>{% endif %}
+    <input class="form-control mb-1" name="note" placeholder="Note (facultatif)">
+    <button class="btn btn-orange btn-lg w-100" style="justify-content:center">{{ m.icon('check', 16) }} Valider la vente</button>
+    {% if not prix_libre %}<p class="help mt-1">Le tarif est appliqué automatiquement selon le profil du client. Remise maximale : 10 %.</p>{% endif %}
+  </div></div>
+</div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script>
+const PRODUITS = {{ produits|map(attribute='id')|list|tojson }};
+const PRIX = { {% for p in produits %}{{ p.id }}: {grossiste: {{ p.prix_gros or 0 }}, revendeur: {{ p.prix_revendeur or p.prix_gros or 0 }}, restaurant: {{ p.prix_restaurant or p.prix_detail or 0 }}, particulier: {{ p.prix_detail or 0 }}, unite: "{{ p.unite }}", tva: {{ 'true' if p.soumis_tva else 'false' }}}, {% endfor %} };
+const TVA = {{ (get_tva or 0) }};
+const f = document.getElementById('f-vente'); let STOCK = {};
+const tarif = () => f.client.selectedOptions[0].dataset.tarif || 'particulier';
+async function chargerStock(){ const r = await fetch('/api/stock?entrepot=' + f.entrepot_id.value); STOCK = await r.json();
+  document.querySelectorAll('.tile-stock').forEach(s => { const d = STOCK[s.dataset.pid]; s.textContent = d ? '· ' + nb(d.dispo) : ''; });
+  majLignes(); }
+async function infoClient(){ const id = f.client_id.value; const r = await fetch('/api/client/' + id); const d = await r.json();
+  document.getElementById('client-info').innerHTML = `Tarif <b>${d.tarif}</b>` + (d.solde > 0 ? ` · doit déjà <b class="text-danger">${fcfa(d.solde)}</b>` : '') + (d.plafond ? ` · plafond ${fcfa(d.plafond)}` : '');
+  const e = new Date(); e.setDate(e.getDate() + (d.delai || 0)); document.getElementById('echeance').value = e.toISOString().slice(0, 10);
+  f.querySelectorAll('#lignes tbody tr').forEach(tr => appliquerPrix(tr, true)); calc(); }
+function appliquerPrix(tr, force){ const pid = tr.querySelector('.sel-p').value; if (!pid) return; const p = PRIX[pid];
+  const pu = tr.querySelector('.pu'); if (force || !pu.value) pu.value = p[tarif()];
+  tr.querySelector('.tarif').textContent = 'Tarif ' + tarif() + ' : ' + fcfa(p[tarif()]) + ' / ' + p.unite;
+  const rem = tr.querySelector('.rem'); if (!rem.value) rem.value = f.client.selectedOptions[0].dataset.remise > 0 ? f.client.selectedOptions[0].dataset.remise : ''; }
+function majLignes(){ f.querySelectorAll('#lignes tbody tr').forEach(tr => { const pid = tr.querySelector('.sel-p').value, h = tr.querySelector('.stock-hint');
+  if (!pid) { h.textContent = ''; return; } const d = STOCK[pid] || {dispo: 0}; const q = num(tr.querySelector('.q').value);
+  h.textContent = 'Disponible : ' + nb(d.dispo) + ' ' + PRIX[pid].unite; h.classList.toggle('low', q > d.dispo); }); }
+let dernierTotal = 0;
+function calc(){ let sous = 0, tva = 0;
+  f.querySelectorAll('#lignes tbody tr').forEach(tr => { const pid = tr.querySelector('.sel-p').value; const q = num(tr.querySelector('.q').value), pu = num(tr.querySelector('.pu').value), r = num(tr.querySelector('.rem').value);
+    const mt = Math.round(q * pu * (1 - r / 100)); tr.querySelector('.line-total').textContent = fcfa(mt); sous += mt; if (pid && PRIX[pid].tva) tva += mt * TVA; });
+  const rg = num(f.remise_globale.value), liv = num(f.frais_livraison.value);
+  if (sous) tva = tva * (sous - rg) / sous;
+  const total = Math.round(sous - rg + liv + tva);
+  document.getElementById('t-sous').textContent = fcfa(sous); document.getElementById('t-total').textContent = fcfa(total);
+  document.getElementById('row-tva').style.display = tva ? '' : 'none'; document.getElementById('t-tva').textContent = fcfa(tva);
+  const paye = document.getElementById('paye'); if (!paye.dataset.touched || num(paye.value) === dernierTotal) paye.value = total || '';
+  dernierTotal = total; const p = num(paye.value);
+  document.getElementById('rendu').innerHTML = p > total ? `Monnaie à rendre : <b>${fcfa(p - total)}</b> (seul le total est encaissé)` : (p < total && p >= 0 && total ? `Reste dû : <b class="text-danger">${fcfa(total - p)}</b> — enregistré en crédit client` : '');
+  majLignes(); }
+function majMode(){ const mo = f.querySelector('input[name=mode]:checked').value; document.querySelectorAll('.radio-card').forEach(c => c.classList.toggle('checked', c.querySelector('input').checked));
+  document.getElementById('bloc-paye').style.display = mo === 'credit' ? 'none' : '';
+  const t = {especes: 'caisse', wave: 'wave', orange_money: 'orange_money', virement: 'banque', cheque: 'banque'}[mo];
+  const opt = [...f.compte_id.options].find(o => o.dataset.type === t); if (opt) f.compte_id.value = opt.value; }
+f.addEventListener('change', e => { if (e.target.classList.contains('sel-p')) appliquerPrix(e.target.closest('tr'), true);
+  if (e.target.name === 'client_id') infoClient(); if (e.target.name === 'entrepot_id') chargerStock(); if (e.target.name === 'mode') majMode(); calc(); });
+f.addEventListener('input', e => { if (e.target.id === 'paye') e.target.dataset.touched = 1; calc(); });
+document.getElementById('tiles').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return;
+  let tr = [...f.querySelectorAll('#lignes tbody tr')].find(t => t.querySelector('.sel-p').value === b.dataset.add);
+  if (!tr) { tr = [...f.querySelectorAll('#lignes tbody tr')].find(t => !t.querySelector('.sel-p').value) || addLine('#lignes'); tr.querySelector('.sel-p').value = b.dataset.add; appliquerPrix(tr, true); }
+  const q = tr.querySelector('.q'); q.value = num(q.value) + 1; q.focus(); q.select(); calc(); });
+// En cas de réponse d'erreur, le formulaire est conservé ; après succès on va sur la facture.
+f.addEventListener('submit', () => { [...f.querySelectorAll('#lignes tbody tr')].forEach(tr => { if (!tr.querySelector('.sel-p').value) tr.querySelectorAll('input').forEach(i => i.value = ''); }); }, true);
+addLine('#lignes'); majMode(); chargerStock(); infoClient();
+</script>{% endblock %}

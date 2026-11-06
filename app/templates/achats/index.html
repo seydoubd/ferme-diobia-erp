@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block page_title %}Achats & approvisionnement{% endblock %}
+{% block topbar_actions %}{% if can('achats.gerer') %}<a href="{{ url_for('achats.nouveau') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouvel achat</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="kpi-grid">
+  {{ m.kpi('Achats réceptionnés (liste)', total|fcfa, 'bag', 'p') }}
+  {{ m.kpi('Reste à payer', du|fcfa, 'alert', 'opale') }}
+  {{ m.kpi('Bons de commande en attente', achats|selectattr('statut','equalto','commande')|list|length, 'file', 'white') }}
+</div>
+<div class="card">
+  <form class="filter-bar" method="get">
+    {% for k, v in [('', 'Tous'), ('commande', 'Bons de commande'), ('recu', 'Réceptionnés'), ('annule', 'Annulés')] %}<a class="filter-btn {{ 'active' if request.args.get('statut','') == k }}" href="?statut={{ k }}">{{ v }}</a>{% endfor %}
+    <select name="fournisseur" class="form-control" onchange="this.form.submit()" style="margin-left:auto"><option value="">Tous les fournisseurs</option>{% for f in fournisseurs %}<option value="{{ f.id }}" {{ 'selected' if request.args.get('fournisseur')|int == f.id }}>{{ f.nom }}</option>{% endfor %}</select>
+  </form>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>N°</th><th>Date</th><th>Fournisseur</th><th>Articles</th><th>Entrepôt</th><th class="num">Total dû</th><th class="num">Payé</th><th class="num">Reste</th><th>Statut</th></tr></thead>
+    <tbody>{% for a in achats %}<tr class="{{ 'row-muted' if a.statut == 'annule' }}">
+      <td><a class="link-orange" href="{{ url_for('achats.detail', aid=a.id) }}">{{ a.numero }}</a></td><td class="nowrap">{{ (a.date_reception or a.date)|date_fr }}</td><td>{{ a.fournisseur.nom }}</td>
+      <td style="font-size:.78rem">{% for l in a.lignes %}{{ l.quantite|nombre }} {{ l.produit.unite }} {{ l.produit.nom }}{{ ', ' if not loop.last }}{% endfor %}</td><td>{{ a.entrepot.nom }}</td>
+      <td class="num">{{ a.total_ttc|fcfa }}</td><td class="num">{{ a.montant_paye|fcfa }}</td><td class="num fw-bold {{ 'text-danger' if a.solde > 0 }}">{{ a.solde|fcfa if a.statut == 'recu' else '' }}</td>
+      <td>{{ m.badge_statut(a.statut) }}{% if a.en_retard %} <span class="st st-rouge">Échu</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="9">{{ m.empty('Aucun achat.') }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ c.nom }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('tiers.client_edit', cid=c.id) }}" class="btn btn-ghost">{{ m.icon('edit', 15) }} Modifier</a>{% if can('ventes.creer') %}<a href="{{ url_for('ventes.nouvelle', client=c.id) }}" class="btn btn-orange">{{ m.icon('plus', 15) }} Vendre</a>{% endif %}{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="page-head"><div><div class="page-sub">{{ TYPES[c.type_client] }} · tarif {{ c.tarif }} · {{ c.telephone or '' }} · {{ c.adresse or '' }}{% if c.plafond_credit %} · plafond {{ c.plafond_credit|fcfa }}{% endif %} · délai {{ c.delai_paiement_jours }} j</div></div></div>
+{% if stats.retard > 0 %}<div class="alerte-creance-banner">{{ m.icon('alert', 26) }}<div><b class="text-danger">{{ stats.retard|fcfa }} échus</b> à relancer.{% if c.telephone %} <a class="link-orange" target="_blank" href="https://wa.me/{{ c.telephone|replace(' ','')|replace('+','') }}?text={{ ('Bonjour, sauf erreur de notre part, votre solde chez ' ~ nom_entreprise ~ ' est de ' ~ stats.du|fcfa ~ '. Merci de régulariser. Cordialement.')|urlencode }}">Relancer par WhatsApp</a>{% endif %}</div></div>{% endif %}
+<div class="kpi-grid">
+  {{ m.kpi('Total des ventes', stats.total|fcfa, 'cart', 'white', stats.nb ~ ' factures') }}
+  {{ m.kpi('Encaissé', stats.paye|fcfa, 'wallet', 'pale') }}
+  {{ m.kpi('Reste dû', stats.du|fcfa, 'alert', 'opale' if stats.du else 'white') }}
+  {% if F %}{{ m.kpi('Marge générée', stats.marge|fcfa, 'trend', 'p') }}{% endif %}
+</div>
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">Historique des achats</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Facture</th><th>Date</th><th>Échéance</th><th class="num">Total</th><th class="num">Payé</th><th class="num">Reste</th><th>Statut</th></tr></thead>
+  <tbody>{% for v in ventes %}<tr class="{{ 'row-muted' if v.statut == 'annulee' }}"><td><a class="link-orange" href="{{ url_for('ventes.detail', vid=v.id) }}">{{ v.numero }}</a></td><td>{{ v.date|date_fr }}</td><td class="{{ 'text-danger fw-bold' if v.en_retard }}">{{ v.echeance|date_fr }}</td>
+    <td class="num">{{ v.total_ttc|fcfa }}</td><td class="num">{{ v.montant_paye|fcfa }}</td><td class="num fw-bold">{{ v.solde|fcfa if v.solde > 0 else '' }}</td><td>{{ m.statut_vente(v) }}</td></tr>{% else %}<tr><td colspan="7" class="text-muted">Aucune vente.</td></tr>{% endfor %}</tbody></table></div></div>
+<div>
+{% if stats.du > 0 and can('encaissements.gerer') %}<div class="card"><div class="card-header"><div class="card-title">Encaisser un règlement</div></div>
+<form class="card-body" method="post" action="{{ url_for('tiers.client_encaisser', cid=c.id) }}" data-ajax>{{ m.ft() }}
+  <input class="form-control mb-1" name="montant" value="{{ stats.du|int }}" style="font-weight:700">
+  <select class="form-control mb-1" name="mode">{% for k, v in MODES.items() if k != 'credit' %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  <select class="form-control mb-1" name="compte_id"><option value="">Compte auto selon le mode</option>{% for cp in comptes %}<option value="{{ cp.id }}">{{ cp.nom }}</option>{% endfor %}</select>
+  <input class="form-control mb-1" name="reference" placeholder="Référence">
+  <p class="help mb-1">Le montant est affecté automatiquement aux factures les plus anciennes.</p>
+  <button class="btn btn-primary w-100" style="justify-content:center">Enregistrer</button></form></div>{% endif %}
+<div class="card"><div class="card-header"><div class="card-title">Règlements reçus</div></div><div class="card-body">
+{% for p in paiements %}<div class="flex-between" style="font-size:.82rem;padding:.3rem 0;border-bottom:1px dashed var(--border)"><span>{{ p.date|date_fr }} · {{ MODES.get(p.mode) }}</span><b class="{{ 'text-muted' if p.statut != 'valide' else 'text-vert' }}">{{ p.montant|fcfa }}{{ ' (annulé)' if p.statut != 'valide' }}</b></div>{% else %}<span class="text-muted">Aucun règlement.</span>{% endfor %}</div></div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% set p = request.path %}
+<div class="tabs no-print">
+  <a class="tab {{ 'active' if p == '/stocks/' }}" href="{{ url_for('stocks.index') }}">État des stocks</a>
+  <a class="tab {{ 'active' if p.startswith('/stocks/lots') }}" href="{{ url_for('stocks.lots') }}">Lots & traçabilité</a>
+  <a class="tab {{ 'active' if p.startswith('/stocks/mouvements') }}" href="{{ url_for('stocks.mouvements') }}">Historique des mouvements</a>
+  <a class="tab {{ 'active' if p.startswith('/stocks/operation') }}" href="{{ url_for('stocks.operations') }}">Pertes, transferts, ajustements</a>
+  {% if can('stock.inventaire') %}<a class="tab {{ 'active' if p.startswith('/stocks/inventaire') }}" href="{{ url_for('stocks.inventaires') }}">Inventaires</a>{% endif %}
+  <a class="tab {{ 'active' if p.startswith('/stocks/entrepots') }}" href="{{ url_for('stocks.entrepots') }}">Entrepôts</a>
+</div>

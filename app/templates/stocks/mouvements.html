@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block page_title %}Historique des mouvements{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<div class="card">
+  <form class="filter-bar" method="get">
+    <select name="produit" class="form-control"><option value="">Produit</option>{% for p in produits %}<option value="{{ p.id }}" {{ 'selected' if request.args.get('produit')|int == p.id }}>{{ p.nom }}</option>{% endfor %}</select>
+    <select name="entrepot" class="form-control"><option value="">Entrepôt</option>{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if request.args.get('entrepot')|int == e.id }}>{{ e.nom }}</option>{% endfor %}</select>
+    <select name="type" class="form-control"><option value="">Type</option>{% for k, v in TYPES.items() %}<option value="{{ k }}" {{ 'selected' if request.args.get('type') == k }}>{{ v }}</option>{% endfor %}</select>
+    <input type="date" name="debut" class="form-control" value="{{ request.args.get('debut','') }}"><input type="date" name="fin" class="form-control" value="{{ request.args.get('fin','') }}">
+    <button class="btn btn-primary btn-xs">Filtrer</button>
+  </form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Date</th><th>Type</th><th>Produit</th><th>Lot</th><th>Entrepôt</th><th class="num">Quantité</th>{% if F %}<th class="num">Coût unit.</th><th class="num">Valeur</th>{% endif %}<th>Référence</th><th>Par</th></tr></thead>
+    <tbody>{% for mv in pag.items %}<tr>
+      <td class="nowrap">{{ mv.date|date_fr(true) }}</td><td>{{ TYPES.get(mv.type_mvt, mv.type_mvt) }}</td><td>{{ mv.produit.nom }}</td>
+      <td><a class="link-orange mono" href="{{ url_for('stocks.lot', lid=mv.lot_id) }}">{{ mv.lot.code if mv.lot }}</a></td><td>{{ mv.entrepot.nom }}</td>
+      <td class="num fw-bold {{ 'text-vert' if mv.quantite > 0 else 'text-danger' }}">{{ '+' if mv.quantite > 0 }}{{ mv.quantite|nombre }}</td>
+      {% if F %}<td class="num">{{ mv.cout_unitaire|fcfa }}</td><td class="num">{{ mv.valeur|fcfa }}</td>{% endif %}
+      <td>{% if mv.ref_type == 'vente' %}<a class="link-sm" href="{{ url_for('ventes.detail', vid=mv.ref_id) }}">Vente</a>{% elif mv.ref_type == 'achat' %}<a class="link-sm" href="{{ url_for('achats.detail', aid=mv.ref_id) }}">Achat</a>{% elif mv.ref_type == 'transformation' %}<a class="link-sm" href="{{ url_for('transformations.detail', tid=mv.ref_id) }}">Transformation</a>{% elif mv.ref_type == 'inventaire' %}<a class="link-sm" href="{{ url_for('stocks.inventaire', iid=mv.ref_id) }}">Inventaire</a>{% else %}{{ mv.ref_type or '' }}{% endif %}</td>
+      <td>{{ mv.user.nom if mv.user else '' }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card-footer">{% if pag.has_prev %}<a class="btn btn-ghost btn-xs" href="?page={{ pag.prev_num }}">← Précédent</a>{% endif %}<span class="text-muted" style="font-size:.78rem">Page {{ pag.page }} / {{ pag.pages }} · {{ pag.total }} mouvements</span>{% if pag.has_next %}<a class="btn btn-ghost btn-xs" href="?page={{ pag.next_num }}">Suivant →</a>{% endif %}</div>
+</div>
+{% endblock %}

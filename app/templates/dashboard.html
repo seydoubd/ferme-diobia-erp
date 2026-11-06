@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block topbar_actions %}
+{% if can('ventes.creer') %}<a href="{{ url_for('ventes.nouvelle') }}" class="btn btn-orange no-print">{{ m.icon('plus', 15) }} Nouvelle vente</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="page-head">
+  <div><h2 style="font-size:1.2rem">Bonjour {{ current_user.nom.split(' ')[0] }} 👋</h2>
+    <div class="page-sub">Période analysée : du {{ debut|date_fr }} au {{ fin|date_fr }} · situation des stocks et de la trésorerie en temps réel</div></div>
+  <form class="flex no-print" method="get">
+    <input type="date" name="debut" value="{{ debut }}" class="form-control" style="width:auto">
+    <input type="date" name="fin" value="{{ fin }}" class="form-control" style="width:auto">
+    <button class="btn btn-ghost">Appliquer</button>
+  </form>
+</div>
+
+<div class="kpi-grid kpi-lg">
+  {{ m.kpi('Poulets vivants disponibles', k.nb_vivants|nombre ~ ' têtes', 'bird', 'p', ('Valeur : ' ~ k.valeur_vivant|fcfa) if F else None, 'Combien de poulets ai-je ?', url_for('stocks.index', type='vivant')) }}
+  {% if F %}{{ m.kpi('Valeur totale des stocks', k.valeur_stock_total|fcfa, 'box', 'white', 'Transformés : ' ~ k.valeur_transforme|fcfa ~ (' · en cours : ' ~ k.en_cours|fcfa if k.en_cours else ''), 'Combien valent mes stocks ?', url_for('stocks.index')) }}{% endif %}
+  {{ m.kpi('Vendus sur pied', k.vendus_sur_pied|nombre ~ ' poulets', 'cart', 'opale', 'sur la période', 'Combien vendus sur pied ?') }}
+  {{ m.kpi('Transformés', k.transformes|nombre ~ ' poulets', 'knife', 'pale', 'sur la période', 'Combien transformés ?', url_for('transformations.index')) }}
+  {{ m.kpi("Chiffre d'affaires du jour", k.ca_jour|fcfa, 'chart', 'white', 'HT, facturé') }}
+  {{ m.kpi("Chiffre d'affaires de la période", k.ca_periode|fcfa, 'trend', 'orange', 'Encaissé : ' ~ k.encaissements|fcfa, "Quel est mon chiffre d'affaires ?", url_for('ventes.index', debut=debut, fin=fin)) }}
+  {% if F %}
+  {{ m.kpi('Marge brute', k.marge_brute|fcfa, 'trend', 'white', k.taux_marge|nombre ~ ' % du CA · sur coûts réels') }}
+  {{ m.kpi('Bénéfice net estimé', k.resultat_net|fcfa, 'cash', 'p' if k.resultat_net >= 0 else 'danger', 'après charges et IS estimé', 'Quel est mon bénéfice réel ?', url_for('finances.rentabilite', debut=debut, fin=fin)) }}
+  {% endif %}
+  {% if can('tresorerie.voir') %}{{ m.kpi('Trésorerie disponible', k.tresorerie|fcfa, 'wallet', 'p', 'Caisse + banque + Wave + Orange Money', "Combien d'argent ai-je ?", url_for('finances.tresorerie')) }}
+  {{ m.kpi('Dépenses de la période', k.depenses_periode|fcfa, 'card', 'white', 'toutes dépenses payées', None, url_for('finances.depenses')) }}{% endif %}
+  {{ m.kpi('Créances clients', k.creances|fcfa, 'users', 'opale', 'reste à encaisser', 'Combien me doit-on ?', url_for('tiers.credits')) }}
+  {% if can('achats.voir') %}{{ m.kpi('Dettes fournisseurs', k.dettes|fcfa, 'factory', 'white', 'reste à payer', 'Combien dois-je ?', url_for('tiers.credits')) }}{% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Produits transformés disponibles</div><a class="link-sm" href="{{ url_for('stocks.index') }}">Tout le stock →</a></div>
+  <div class="card-body"><div class="kpi-grid" style="margin:0">
+    {% for c in cles %}
+    <div class="kpi-card kpi-white"><div class="kpi-body">
+      <div class="kpi-label">{{ c.produit.nom }}</div>
+      <div class="kpi-value {{ 'text-danger' if c.produit.seuil_alerte and c.qte <= c.produit.seuil_alerte else 'text-p' }}">{{ c.qte|nombre }} {{ c.produit.unite }}</div>
+      <div class="kpi-sub">{% if c.dispo < c.qte %}dont {{ (c.qte - c.dispo)|nombre }} réservé{% else %}seuil d'alerte {{ c.produit.seuil_alerte|nombre }}{% endif %}</div>
+    </div></div>
+    {% endfor %}
+  </div></div>
+</div>
+
+{% if peremption or alertes or echues or en_cours %}
+<div class="grid-2 mb-2">
+  <div class="card" style="margin:0"><div class="card-header"><div class="card-title">⚠️ Alertes de stock</div></div><div class="card-body">
+    {% for l in peremption[:6] %}<div class="flex-between" style="padding:.35rem 0;border-bottom:1px dashed var(--border);font-size:.82rem"><span><b>{{ l.produit.nom }}</b> · lot <a class="link-orange" href="{{ url_for('stocks.lot', lid=l.id) }}">{{ l.code }}</a> · {{ l.entrepot.nom }}</span><span class="st {{ 'st-rouge' if l.jours_avant_peremption <= 0 else 'st-orange' }}">{{ l.qte_restante|nombre }} {{ l.produit.unite }} · {% if l.jours_avant_peremption < 0 %}périmé{% elif l.jours_avant_peremption == 0 %}expire aujourd'hui{% else %}J-{{ l.jours_avant_peremption }}{% endif %}</span></div>{% endfor %}
+    {% if peremption|length > 6 %}<div class="text-muted" style="font-size:.76rem;padding:.3rem 0">+ {{ peremption|length - 6 }} autre(s) lot(s) à surveiller · <a class="link-orange" href="{{ url_for('stocks.index') }}">voir le stock</a></div>{% endif %}
+    {% for p, q in alertes[:6] %}<div class="flex-between" style="padding:.35rem 0;border-bottom:1px dashed var(--border);font-size:.82rem"><span><b>{{ p.nom }}</b></span><span class="st {{ 'st-rouge' if q <= 0 else 'st-orange' }}">{{ 'Rupture' if q <= 0 else 'Stock faible' }} · {{ q|nombre }} {{ p.unite }}</span></div>{% endfor %}
+    {% for t in en_cours %}<div class="flex-between" style="padding:.35rem 0;font-size:.82rem"><span>Transformation <a class="link-orange" href="{{ url_for('transformations.detail', tid=t.id) }}">{{ t.numero }}</a> en cours</span><span class="st st-bleu">{{ t.nb_poulets }} poulets</span></div>{% endfor %}
+    {% if not peremption and not alertes and not en_cours %}<div class="text-muted" style="font-size:.82rem">Aucune alerte.</div>{% endif %}
+  </div></div>
+  <div class="card" style="margin:0"><div class="card-header"><div class="card-title">Factures échues</div><a class="link-sm" href="{{ url_for('tiers.credits') }}">Relances →</a></div><div class="card-body">
+    {% for v in echues %}<div class="flex-between" style="padding:.35rem 0;border-bottom:1px dashed var(--border);font-size:.82rem"><span><a class="link-orange" href="{{ url_for('ventes.detail', vid=v.id) }}">{{ v.numero }}</a> · {{ v.client.nom }}</span><span><b class="text-danger">{{ v.solde|fcfa }}</b> <span class="alerte-jour-badge">{{ (today() - v.echeance).days }} j</span></span></div>
+    {% else %}<div class="text-muted" style="font-size:.82rem">Aucune facture échue. 👍</div>{% endfor %}
+  </div></div>
+</div>
+{% endif %}
+
+<div class="grid-21">
+  <div class="card"><div class="card-header"><div class="card-title">Chiffre d'affaires journalier – 30 derniers jours</div></div><div class="chart-wrap"><canvas id="ch-ca"></canvas></div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Répartition des ventes</div></div><div class="chart-wrap"><canvas id="ch-canal"></canvas></div></div>
+</div>
+<div class="grid-2">
+  <div class="card"><div class="card-header"><div class="card-title">Évolution mensuelle {{ '· CA et bénéfice' if F else '· CA' }}</div></div><div class="chart-wrap"><canvas id="ch-mois"></canvas></div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Comparaison des deux circuits</div></div><div class="chart-wrap"><canvas id="ch-circuits"></canvas></div></div>
+</div>
+{% if F %}
+<div class="grid-2">
+  <div class="card"><div class="card-header"><div class="card-title">Répartition des dépenses</div></div><div class="chart-wrap"><canvas id="ch-dep"></canvas></div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Évolution de la valeur du stock</div></div><div class="chart-wrap"><canvas id="ch-stock"></canvas></div></div>
+</div>
+{% endif %}
+
+<div class="grid-3">
+  <div class="card"><div class="card-header"><div class="card-title">Meilleurs clients</div></div><div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Client</th><th class="num">CA HT</th></tr></thead><tbody>
+    {% for r in top_clients %}<tr><td>{{ r.cle }}</td><td class="num">{{ r.ca|fcfa }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted">—</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Produits les plus vendus</div></div><div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">CA HT</th></tr></thead><tbody>
+    {% for r in top_vendus %}<tr><td>{{ r.cle }}</td><td class="num">{{ r.quantite|nombre }} {{ r.unite }}</td><td class="num">{{ r.ca|fcfa }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted">—</td></tr>{% endfor %}</tbody></table></div></div>
+  {% if F %}<div class="card"><div class="card-header"><div class="card-title">Produits les plus rentables</div><span class="text-muted" style="font-size:.72rem">Quel produit rapporte le plus ?</span></div><div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Produit</th><th class="num">Marge</th><th class="num">Taux</th></tr></thead><tbody>
+    {% for r in top_rentables %}<tr><td>{{ r.cle }}</td><td class="num text-vert fw-bold">{{ r.marge|fcfa }}</td><td class="num">{{ r.taux|nombre }} %</td></tr>{% else %}<tr><td colspan="3" class="text-muted">—</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+</div>
+
+{% if F %}
+<div class="card"><div class="card-header"><div class="card-title">Rentabilité réelle de chaque activité</div><a class="link-sm" href="{{ url_for('finances.rentabilite', debut=debut, fin=fin) }}">Analyse détaillée →</a></div>
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Activité</th><th class="num">CA HT</th><th class="num">Coût réel</th><th class="num">Marge brute</th><th class="num">Pertes</th><th class="num">Marge nette de pertes</th><th class="num">Taux</th></tr></thead>
+  <tbody>{% for c in circuits %}<tr><td class="fw-bold">{{ c.cle }}</td><td class="num">{{ c.ca|fcfa }}</td><td class="num">{{ c.cout|fcfa }}</td><td class="num">{{ c.marge|fcfa }}</td><td class="num text-danger">{{ c.pertes|fcfa }}</td><td class="num fw-bold text-vert">{{ c.marge_nette|fcfa }}</td><td class="num">{{ c.taux|nombre }} %</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% set F = can('finances.voir') %}
+<script>
+window.addEventListener('load', () => {
+  chartDefaults();
+  const C = DIOBIA_COLORS, F = {{ 'true' if F else 'false' }};
+  const serie = {{ serie|tojson }}, mois = {{ mensuel|tojson }}, canaux = {{ canaux|tojson }}, circ = {{ circuits|tojson }};
+  const opts = {responsive: true, maintainAspectRatio: false, plugins: {legend: {position: 'bottom'}}, scales: {y: {ticks: {callback: v => nb(v / 1000) + ' k'}}}};
+  const ds = [{type: 'bar', label: 'CA HT', data: serie.map(s => s.ca), backgroundColor: C.vert, borderRadius: 4}];
+  if (F) ds.push({type: 'line', label: 'Marge brute', data: serie.map(s => s.marge), borderColor: C.orange, backgroundColor: C.orange, tension: .3, pointRadius: 0});
+  new Chart(document.getElementById('ch-ca'), {data: {labels: serie.map(s => s.date), datasets: ds}, options: opts});
+  new Chart(document.getElementById('ch-canal'), {type: 'doughnut', data: {labels: canaux.map(c => c.cle), datasets: [{data: canaux.map(c => c.ca), backgroundColor: [C.vert, C.orange, C.vertClair]}]}, options: {responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: {legend: {position: 'bottom'}}}});
+  const dm = [{type: 'bar', label: 'CA HT', data: mois.map(x => x.ca), backgroundColor: C.vert, borderRadius: 4}];
+  if (F) dm.push({type: 'line', label: 'Résultat net', data: mois.map(x => x.resultat), borderColor: C.orange, backgroundColor: C.orange, tension: .3});
+  new Chart(document.getElementById('ch-mois'), {data: {labels: mois.map(x => x.mois), datasets: dm}, options: opts});
+  const dc = [{label: 'CA HT', data: circ.map(c => c.ca), backgroundColor: C.vert, borderRadius: 4}];
+  if (F) dc.push({label: 'Marge nette', data: circ.map(c => c.marge_nette), backgroundColor: C.orange, borderRadius: 4});
+  new Chart(document.getElementById('ch-circuits'), {type: 'bar', data: {labels: circ.map(c => c.cle), datasets: dc}, options: opts});
+  {% if F %}
+  const dep = {{ depenses|tojson }}, st = {{ evol_stock|tojson }};
+  new Chart(document.getElementById('ch-dep'), {type: 'doughnut', data: {labels: dep.map(d => d.cle), datasets: [{data: dep.map(d => d.montant), backgroundColor: [C.vert, C.orange, C.vertClair, C.orangeClair, '#1B5E20', '#E07B00', '#A5D6A7', '#FFE0B2', C.gris, '#66BB6A']}]}, options: {responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: {legend: {position: 'right'}}}});
+  new Chart(document.getElementById('ch-stock'), {type: 'line', data: {labels: st.map(s => s.date), datasets: [{label: 'Valeur du stock', data: st.map(s => s.valeur), borderColor: C.vert, backgroundColor: 'rgba(46,125,50,.12)', fill: true, tension: .3, pointRadius: 0}]}, options: opts});
+  {% endif %}
+});
+</script>
+{% endblock %}

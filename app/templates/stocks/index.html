@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block page_title %}Stocks & entrepôts{% endblock %}
+{% block topbar_actions %}{% if can('stock.mouvement') %}<a href="{{ url_for('stocks.operation', type='mortalite') }}" class="btn btn-outline-orange">Déclarer une perte</a><a href="{{ url_for('stocks.operation', type='transfert') }}" class="btn btn-primary">{{ m.icon('swap', 15) }} Transfert</a>{% endif %}{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<div class="card">
+  <form class="filter-bar" method="get">
+    <select name="entrepot" class="form-control" onchange="this.form.submit()"><option value="">Tous les entrepôts</option>{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if eid == e.id }}>{{ e.nom }}</option>{% endfor %}</select>
+    <select name="type" class="form-control" onchange="this.form.submit()"><option value="">Tous les types</option>
+      {% for k, v in [('vivant','Poulets vivants'),('abattu','Poulets entiers'),('decoupe','Découpes'),('abats','Abats'),('emballage','Emballages')] %}<option value="{{ k }}" {{ 'selected' if request.args.get('type') == k }}>{{ v }}</option>{% endfor %}</select>
+    {% if F %}<span class="stock-info-badge" style="margin-left:auto">Valeur : {{ total|fcfa }}</span>{% endif %}
+  </form>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Produit</th><th>Entrepôt</th><th class="num">Frais</th><th class="num">Congelé</th><th class="num">Endommagé</th><th class="num">Réservé</th><th class="num">Disponible</th>{% if F %}<th class="num">Valeur (coût réel)</th>{% endif %}<th></th></tr></thead>
+    <tbody>{% for r in etat %}<tr>
+      <td class="fw-bold">{{ r.produit.nom }}{% if r.alerte %} <span class="st st-rouge">Stock faible</span>{% endif %}</td><td>{{ r.entrepot.nom }}</td>
+      <td class="num">{{ r.frais|nombre }}</td><td class="num">{{ r.congele|nombre if r.congele else '' }}</td>
+      <td class="num {{ 'text-danger' if r.endommage }}">{{ r.endommage|nombre if r.endommage else '' }}</td>
+      <td class="num text-orange">{{ r.reserve|nombre if r.reserve else '' }}</td>
+      <td class="num fw-bold text-p">{{ r.disponible|nombre }} {{ r.produit.unite }}</td>
+      {% if F %}<td class="num">{{ r.valeur|fcfa }}</td>{% endif %}
+      <td><a class="link-sm" href="{{ url_for('stocks.lots', produit=r.produit.id, entrepot=r.entrepot.id) }}">Lots →</a></td></tr>
+    {% else %}<tr><td colspan="9">{{ m.empty('Aucun stock. Enregistrez un achat ou une entrée de stock.') }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% if en_cours %}<div class="card"><div class="card-header"><div class="card-title">Produits en cours de transformation</div></div><div class="table-wrap"><table class="table">
+  <thead><tr><th>Opération</th><th>Date</th><th class="num">Poulets</th><th class="num">Poids vif</th>{% if F %}<th class="num">Valeur en cours</th>{% endif %}<th></th></tr></thead>
+  <tbody>{% for t in en_cours %}<tr><td><a class="link-orange" href="{{ url_for('transformations.detail', tid=t.id) }}">{{ t.numero }}</a></td><td>{{ t.date|date_fr(true) }}</td><td class="num">{{ t.nb_poulets }}</td><td class="num">{{ t.poids_vif_total|nombre }} kg</td>{% if F %}<td class="num">{{ t.cout_matiere|fcfa }}</td>{% endif %}<td><a class="btn btn-primary btn-xs" href="{{ url_for('transformations.detail', tid=t.id) }}">Saisir les produits obtenus</a></td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+<div class="grid-2">
+  <div class="card"><div class="card-header"><div class="card-title">Péremption dans les 3 jours</div></div><div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Lot</th><th>Produit</th><th>Entrepôt</th><th class="num">Reste</th><th>Échéance</th></tr></thead>
+    <tbody>{% for l in peremption %}<tr><td><a class="link-orange mono" href="{{ url_for('stocks.lot', lid=l.id) }}">{{ l.code }}</a></td><td>{{ l.produit.nom }}</td><td>{{ l.entrepot.nom }}</td><td class="num">{{ l.qte_restante|nombre }}</td>
+      <td><span class="st {{ 'st-rouge' if l.jours_avant_peremption <= 0 else 'st-orange' }}">{{ l.date_peremption|date_fr }}</span></td></tr>{% else %}<tr><td colspan="5" class="text-muted">Aucun lot proche de la péremption.</td></tr>{% endfor %}</tbody></table></div></div>
+  {% if rappro %}<div class="card"><div class="card-header"><div class="card-title">Rapprochement stock physique / comptable</div></div><div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Compte</th><th class="num">Lots valorisés</th><th class="num">Comptabilité</th><th class="num">Écart</th></tr></thead>
+    <tbody>{% for r in rappro %}<tr><td>{{ r.compte }} · {{ r.libelle }}</td><td class="num">{{ r.physique|fcfa }}</td><td class="num">{{ r.comptable|fcfa }}</td><td class="num {{ 'text-danger fw-bold' if r.ecart|abs > 1 else 'text-vert' }}">{{ r.ecart|fcfa }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="card-body help">Chaque mouvement de stock génère son écriture : la valeur des lots et les comptes 31/32/33/34/36 doivent toujours concorder.</div></div>{% endif %}
+</div>
+{% endblock %}

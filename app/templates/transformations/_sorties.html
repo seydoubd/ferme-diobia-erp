@@ -1,0 +1,65 @@
+{# Saisie des produits obtenus + frais + méthode, avec aperçu de répartition en direct #}
+<div class="card"><div class="card-header"><div class="card-title">Produits obtenus</div><span class="help">Quantités réelles pesées. Les lignes vides sont ignorées.</span></div>
+<div class="card-body" style="overflow-x:auto"><table class="lines-table" id="sorties"><thead><tr><th>Produit</th><th>Quantité</th><th>Poids (kg) si pièces</th><th class="col-coef">Coef. valeur</th><th class="col-pct">Part %</th><th>Conservation</th><th class="num">Coût alloué</th><th class="num">Coût / unité</th></tr></thead><tbody>
+{% for p in sorties %}<tr data-pid="{{ p.id }}">
+  <td class="fw-bold">{{ p.nom }}<input type="hidden" name="produit_id[]" value="{{ p.id }}"></td>
+  <td><div class="flex" style="flex-wrap:nowrap"><input class="form-control" style="width:90px" name="quantite[]" inputmode="decimal"><span class="text-muted" style="font-size:.75rem">{{ p.unite }}</span></div></td>
+  <td>{% if p.unite != 'kg' %}<input class="form-control" style="width:90px" name="poids_kg[]" inputmode="decimal">{% else %}<input type="hidden" name="poids_kg[]" value="">—{% endif %}</td>
+  <td class="col-coef"><input class="form-control" style="width:70px" name="coef[]" value="{{ p.coef_valeur|nombre }}" inputmode="decimal"></td>
+  <td class="col-pct"><input class="form-control" style="width:70px" name="part_pct[]" inputmode="decimal"></td>
+  <td><select class="form-control" name="etat[]" style="width:110px"><option value="frais">Frais</option><option value="congele">Congelé</option></select></td>
+  <td class="line-total cout">—</td><td class="line-total cu">—</td></tr>{% endfor %}
+</tbody></table></div></div>
+<div class="grid-2">
+<div class="card"><div class="card-header"><div class="card-title">Frais de transformation</div></div><div class="card-body">
+  <div class="form-grid">
+    <div class="form-group"><label class="form-label">Frais d'abattage</label><input class="form-control" name="frais_abattage" inputmode="decimal" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Main-d'œuvre</label><input class="form-control" name="frais_main_oeuvre" inputmode="decimal" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Autres frais (eau, gaz, sachets…)</label><input class="form-control" name="autres_frais" inputmode="decimal" placeholder="0"></div>
+    <div class="form-group"><label class="form-label">Payés depuis</label><select class="form-control" name="compte_frais_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Méthode de répartition des coûts</label>
+    <div class="radio-group" style="grid-template-columns:1fr">{% for k, v in METHODES.items() %}<label class="radio-card {{ 'checked' if k == 'coefficient' }}"><input type="radio" name="methode" value="{{ k }}" {{ 'checked' if k == 'coefficient' }}><span><span class="radio-title">{{ v }}</span><span class="radio-price">{{ {'poids': 'Même coût au kg pour toutes les pièces.', 'coefficient': 'Les pièces nobles (blanc, filets) portent plus de coût que les carcasses.', 'manuelle': 'Vous fixez la part du coût total de chaque produit (total 100 %).'}[k] }}</span></span></label>{% endfor %}</div></div>
+</div></div>
+<div class="card"><div class="card-header"><div class="card-title">Bilan de la transformation</div></div><div class="card-body"><div class="summary">
+  <div class="summary-row"><span class="muted">Coût des poulets (matière)</span><b id="s-matiere">—</b></div>
+  <div class="summary-row"><span class="muted">Frais</span><b id="s-frais">—</b></div>
+  <div class="summary-row total"><span>Coût total à répartir</span><span id="s-total">—</span></div>
+  <div class="summary-row"><span class="muted">Poids obtenu</span><b id="s-poids">—</b></div>
+  <div class="summary-row"><span class="muted">Rendement</span><b id="s-rdt" class="text-p">—</b></div>
+  <div class="summary-row"><span class="muted">Pertes de transformation</span><b id="s-pertes" class="text-orange">—</b></div>
+  <div class="summary-row"><span class="muted">Coût moyen au kg</span><b id="s-kg">—</b></div>
+</div><div id="s-err" class="callout callout-danger mt-1" style="display:none"></div>
+<p class="help mt-1">Aucun chiffre d'affaires n'est généré : les poulets sortent du stock vivant et les produits entrent en stock à leur coût de revient.</p></div></div>
+</div>
+<script>
+(function(){
+  const form = document.currentScript.closest('form');
+  let timer;
+  function cols(){const m=form.querySelector('input[name=methode]:checked').value;
+    form.querySelectorAll('.col-coef').forEach(e=>e.style.display=m==='coefficient'?'':'none');
+    form.querySelectorAll('.col-pct').forEach(e=>e.style.display=m==='manuelle'?'':'none');
+    form.querySelectorAll('.radio-card').forEach(c=>c.classList.toggle('checked',c.querySelector('input').checked));}
+  async function sim(){
+    const g = n => (form.querySelector(`[name="${n}"]`)||{}).value;
+    const lignes = [...form.querySelectorAll('#sorties tbody tr')].map(tr=>({produit_id: tr.dataset.pid, quantite: tr.querySelector('[name="quantite[]"]').value,
+      poids_kg: tr.querySelector('[name="poids_kg[]"]').value, coef: tr.querySelector('[name="coef[]"]').value, part_pct: tr.querySelector('[name="part_pct[]"]').value}));
+    const body = {lignes, methode: g('methode') || form.querySelector('input[name=methode]:checked').value, frais_abattage: g('frais_abattage'), frais_main_oeuvre: g('frais_main_oeuvre'),
+      autres_frais: g('autres_frais'), poids_vif_total: g('poids_vif_total') || form.dataset.poidsVif, cout_matiere: form.dataset.coutMatiere || 0,
+      nb_poulets: g('nb_poulets'), produit_source_id: g('produit_source_id'), entrepot_source_id: g('entrepot_source_id'), lot_source_id: g('lot_source_id')};
+    body.methode = form.querySelector('input[name=methode]:checked').value;
+    const r = await fetch('{{ url_for('transformations.simuler') }}', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content}, body: JSON.stringify(body)});
+    const d = await r.json(); const err = document.getElementById('s-err');
+    form.querySelectorAll('#sorties .cout, #sorties .cu').forEach(e=>e.textContent='—');
+    if(!d.ok){err.style.display='';err.textContent=d.error;return;} err.style.display='none';
+    document.getElementById('s-matiere').textContent=fcfa(d.cout_matiere); document.getElementById('s-frais').textContent=fcfa(d.frais);
+    document.getElementById('s-total').textContent=fcfa(d.cout_total); document.getElementById('s-poids').textContent=nb(d.poids_obtenu)+' kg';
+    document.getElementById('s-rdt').textContent=d.rendement!==null?nb(d.rendement,1)+' %':'—'; document.getElementById('s-pertes').textContent=d.pertes_kg!==null?nb(d.pertes_kg)+' kg':'—';
+    document.getElementById('s-kg').textContent=d.poids_obtenu?fcfa(d.cout_total/d.poids_obtenu)+' / kg':'—';
+    d.lignes.forEach(l=>{const tr=form.querySelector(`#sorties tr[data-pid="${l.produit_id}"]`); tr.querySelector('.cout').textContent=fcfa(l.cout); tr.querySelector('.cu').textContent=fcfa(l.cu);});
+  }
+  form.addEventListener('input', ()=>{cols(); clearTimeout(timer); timer=setTimeout(sim, 350);});
+  form.addEventListener('change', ()=>{cols(); clearTimeout(timer); timer=setTimeout(sim, 200);});
+  cols();
+})();
+</script>

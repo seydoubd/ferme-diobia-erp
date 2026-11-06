@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block page_title %}Employés & paie{% endblock %}
+{% block content %}
+{% set PS = {'present': ('✓', 'st-vert'), 'absent': ('A', 'st-rouge'), 'retard': ('R', 'st-orange'), 'conge': ('C', 'st-bleu')} %}
+<div class="kpi-grid">{{ m.kpi('Employés actifs', emps|selectattr('actif')|list|length, 'users', 'p') }}{{ m.kpi('Masse salariale mensuelle', masse|fcfa, 'cash', 'white', 'salaires de base') }}{{ m.kpi('Avances en cours', avances.values()|sum|fcfa, 'wallet', 'opale', 'déduites au prochain salaire') }}</div>
+<div class="card"><div class="card-header"><div class="card-title">Fichier du personnel et présences (7 derniers jours)</div></div><div class="table-wrap"><table class="table table-compact">
+<thead><tr><th>Employé</th><th>Poste</th><th>Téléphone</th><th class="num">Salaire de base</th><th class="num">Avances</th>{% for j in jours %}<th style="text-align:center">{{ j.strftime('%d/%m') }}</th>{% endfor %}</tr></thead>
+<tbody>{% for e in emps %}<tr class="{{ 'row-muted' if not e.actif }}"><td class="fw-bold">{{ e.nom }}</td><td>{{ e.poste or '' }}</td><td>{{ e.telephone or '' }}</td><td class="num">{{ e.salaire_base|fcfa }}</td><td class="num text-orange">{{ avances[e.id]|fcfa if avances[e.id] }}</td>
+{% for j in jours %}{% set s = pres.get((e.id, j)) %}<td style="text-align:center">{% if s %}<span class="st {{ PS[s][1] }}" style="padding:.1rem .4rem">{{ PS[s][0] }}</span>{% else %}<form method="post" action="{{ url_for('rh.presence') }}" class="inline-form">{{ m.ft() }}<input type="hidden" name="employe_id" value="{{ e.id }}"><input type="hidden" name="date" value="{{ j }}"><select name="statut" onchange="this.form.submit()" style="border:1px solid var(--border);border-radius:6px;font-size:.7rem;padding:1px;background:var(--white);color:var(--text)"><option></option><option value="present">✓</option><option value="absent">Abs.</option><option value="retard">Ret.</option><option value="conge">Congé</option></select></form>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div>
+<div class="grid-3">
+<div class="card"><div class="card-header"><div class="card-title">Payer un salaire</div></div><form class="card-body" method="post" action="{{ url_for('rh.paie') }}" data-ajax data-confirm="Confirmer le paiement du salaire ?">{{ m.ft() }}
+  <select class="form-control mb-1" name="employe_id">{% for e in emps if e.actif %}<option value="{{ e.id }}">{{ e.nom }} · {{ e.salaire_base|fcfa }}</option>{% endfor %}</select>
+  <div class="form-grid mb-1"><select class="form-control" name="mois">{% for i in range(1, 13) %}<option value="{{ i }}" {{ 'selected' if i == mois_prec.month }}>{{ MOIS_FR[i]|capitalize }}</option>{% endfor %}</select><input class="form-control" name="annee" value="{{ mois_prec.year }}"></div>
+  <div class="form-grid mb-1"><input class="form-control" name="primes" placeholder="Primes"><input class="form-control" name="retenues" placeholder="Retenues"></div>
+  <select class="form-control mb-1" name="compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select>
+  <p class="help mb-1">Les avances sont déduites automatiquement. Le salaire est enregistré en dépense, en trésorerie et en comptabilité (661 / 4251 / 5x).</p>
+  <button class="btn btn-primary w-100" style="justify-content:center">Payer</button></form></div>
+<div class="card"><div class="card-header"><div class="card-title">Avance sur salaire</div></div><form class="card-body" method="post" action="{{ url_for('rh.avance') }}" data-ajax>{{ m.ft() }}
+  <select class="form-control mb-1" name="employe_id">{% for e in emps if e.actif %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select>
+  <input class="form-control mb-1" name="montant" placeholder="Montant" required><select class="form-control mb-1" name="compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select>
+  <button class="btn btn-outline-orange w-100" style="justify-content:center">Verser l'avance</button></form>
+  <div class="card-header"><div class="card-title">Congés</div></div><form class="card-body" method="post" action="{{ url_for('rh.conge') }}" data-ajax>{{ m.ft() }}
+  <select class="form-control mb-1" name="employe_id">{% for e in emps if e.actif %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select>
+  <div class="form-grid mb-1"><input class="form-control" type="date" name="debut"><input class="form-control" type="date" name="fin"></div>
+  <select class="form-control mb-1" name="type_conge"><option value="annuel">Congé annuel</option><option value="maladie">Maladie</option><option value="exceptionnel">Exceptionnel</option></select>
+  <button class="btn btn-ghost w-100" style="justify-content:center">Enregistrer la demande</button></form>
+  {% for c in conges[:6] %}<div class="card-body flex-between" style="padding:.3rem 1.25rem;font-size:.8rem"><span>{{ c.employe.nom }} · {{ c.debut|date_fr }} → {{ c.fin|date_fr }}</span>{% if c.statut == 'demande' %}<form method="post" action="{{ url_for('rh.conge') }}" data-ajax class="flex">{{ m.ft() }}<input type="hidden" name="id" value="{{ c.id }}"><button class="btn btn-primary btn-xs" name="statut" value="accorde">Accorder</button><button class="btn btn-ghost btn-xs" name="statut" value="refuse">Refuser</button></form>{% else %}{{ m.badge_statut(c.statut) }}{% endif %}</div>{% endfor %}</div>
+<div class="card"><div class="card-header"><div class="card-title">Nouvel employé</div></div><form class="card-body" method="post" action="{{ url_for('rh.employe_save') }}" data-ajax>{{ m.ft() }}
+  <input class="form-control mb-1" name="nom" placeholder="Nom complet" required><input class="form-control mb-1" name="poste" placeholder="Poste / fonction"><input class="form-control mb-1" name="telephone" placeholder="Téléphone">
+  <div class="form-grid mb-1"><input class="form-control" type="date" name="date_embauche"><input class="form-control" name="salaire_base" placeholder="Salaire de base"></div>
+  <button class="btn btn-primary w-100" style="justify-content:center">Ajouter</button></form></div>
+</div>
+<div class="card"><div class="card-header"><div class="card-title">Historique des paiements de salaires</div></div><div class="table-wrap"><table class="table table-compact"><thead><tr><th>Mois</th><th>Employé</th><th class="num">Base</th><th class="num">Primes</th><th class="num">Retenues</th><th class="num">Brut</th><th class="num">Avances déduites</th><th class="num">Net payé</th><th>Date</th></tr></thead>
+<tbody>{% for p in paies %}<tr><td>{{ MOIS_FR[p.mois]|capitalize }} {{ p.annee }}</td><td>{{ p.employe.nom }}</td><td class="num">{{ p.salaire_base|fcfa }}</td><td class="num">{{ p.primes|fcfa if p.primes }}</td><td class="num">{{ p.retenues|fcfa if p.retenues }}</td><td class="num">{{ p.brut|fcfa }}</td><td class="num">{{ p.avances_deduites|fcfa if p.avances_deduites }}</td><td class="num fw-bold">{{ p.net_a_payer|fcfa }}</td><td>{{ p.date_paiement|date_fr }}</td></tr>{% else %}<tr><td colspan="9" class="text-muted">Aucun paiement.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

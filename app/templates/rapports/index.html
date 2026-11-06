@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block page_title %}Rapports{% endblock %}
+{% block content %}
+<form class="filter-bar card" method="get" style="border-radius:12px;margin-bottom:1rem" id="per"><label>Période du</label><input type="date" name="debut" value="{{ debut }}" class="form-control"><label>au</label><input type="date" name="fin" value="{{ fin }}" class="form-control"><span class="help">La période s'applique à tous les rapports ci-dessous.</span></form>
+<div class="grid-3">{% for code, r in rapports.items() %}
+<div class="card" style="margin:0"><div class="card-body"><div class="flex mb-1"><span class="brand-mark" style="width:34px;height:34px;border-radius:9px">{{ m.icon(r.icone, 17) }}</span><b>{{ r.titre }}</b></div>
+<div class="flex"><a class="btn btn-primary btn-xs rp" data-code="{{ code }}" href="{{ url_for('rapports.voir', code=code) }}">Afficher</a><a class="btn btn-ghost btn-xs rp" data-code="{{ code }}" data-fmt="pdf" href="{{ url_for('rapports.voir', code=code, format='pdf') }}">PDF</a><a class="btn btn-ghost btn-xs rp" data-code="{{ code }}" data-fmt="xlsx" href="{{ url_for('rapports.voir', code=code, format='xlsx') }}">Excel</a></div></div></div>{% endfor %}</div>
+{% endblock %}
+{% block scripts %}<script>document.querySelectorAll('.rp').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const f=document.getElementById('per');const u=new URL(a.href,location.href);u.searchParams.set('debut',f.debut.value);u.searchParams.set('fin',f.fin.value);location.href=u;}));</script>{% endblock %}

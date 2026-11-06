@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ c.nom or 'Nouveau client' }}{% endblock %}
+{% block content %}
+<form method="post" class="form-page" data-ajax style="max-width:760px">{{ m.ft() }}<div class="card"><div class="card-body"><div class="form-grid">
+  <div class="form-group" style="grid-column:1/-1"><label class="form-label">Nom ou raison sociale *</label><input class="form-control" name="nom" value="{{ c.nom or '' }}" required></div>
+  <div class="form-group"><label class="form-label">Type de client</label><select class="form-control" name="type_client" id="tc">{% for k, v in TYPES.items() %}<option value="{{ k }}" data-tarif="{{ TARIF_PAR_TYPE[k] }}" {{ 'selected' if c.type_client == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="form-group"><label class="form-label">Grille tarifaire</label><select class="form-control" name="tarif" id="tarif">{% for k, v in TARIFS.items() %}<option value="{{ k }}" {{ 'selected' if c.tarif == k }}>{{ v }}</option>{% endfor %}</select><div class="form-hint">Proposée automatiquement selon le type.</div></div>
+  <div class="form-group"><label class="form-label">Téléphone</label><input class="form-control" name="telephone" value="{{ c.telephone or '' }}" placeholder="+221 77 …"></div>
+  <div class="form-group"><label class="form-label">E-mail</label><input class="form-control" type="email" name="email" value="{{ c.email or '' }}"></div>
+  <div class="form-group" style="grid-column:1/-1"><label class="form-label">Adresse</label><input class="form-control" name="adresse" value="{{ c.adresse or '' }}"></div>
+  <div class="form-group"><label class="form-label">Délai de paiement (jours)</label><input class="form-control" name="delai_paiement_jours" value="{{ c.delai_paiement_jours or 0 }}"></div>
+  {% if can('finances.voir') %}<div class="form-group"><label class="form-label">Plafond de crédit (FCFA, 0 = illimité)</label><input class="form-control" name="plafond_credit" value="{{ c.plafond_credit|int if c.plafond_credit else 0 }}"></div>
+  <div class="form-group"><label class="form-label">Remise habituelle (%)</label><input class="form-control" name="remise_defaut_pct" value="{{ c.remise_defaut_pct|nombre if c.remise_defaut_pct else 0 }}"></div>{% endif %}
+</div></div><div class="card-footer"><a class="btn btn-ghost" href="{{ url_for('tiers.clients') }}">Annuler</a><button class="btn btn-primary">Enregistrer</button></div></div></form>
+{% endblock %}
+{% block scripts %}<script>document.getElementById('tc').addEventListener('change',e=>{document.getElementById('tarif').value=e.target.selectedOptions[0].dataset.tarif;});</script>{% endblock %}

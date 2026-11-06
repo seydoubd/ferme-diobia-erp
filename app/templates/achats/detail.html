@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block page_title %}Achat {{ a.numero }}{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('achats.imprimer', aid=a.id) }}" target="_blank" class="btn btn-ghost">{{ m.icon('print', 15) }} {{ 'Bon de commande' if a.statut == 'commande' else 'Imprimer' }}</a>{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') or can('couts.modifier') %}
+<div class="grid-21">
+<div>
+<div class="card"><div class="card-header"><div class="card-title">{{ a.fournisseur.nom }}</div>{{ m.badge_statut(a.statut) }}</div><div class="card-body"><dl class="dl">
+  <div><dt>Date commande</dt><dd>{{ a.date|date_fr(true) }}</dd></div><div><dt>Réception</dt><dd>{{ a.date_reception|date_fr(true) if a.date_reception else '—' }}</dd></div>
+  <div><dt>Entrepôt</dt><dd>{{ a.entrepot.nom }}</dd></div><div><dt>Facture fournisseur</dt><dd>{{ a.reference_facture or '—' }}</dd></div>
+  <div><dt>Échéance</dt><dd class="{{ 'text-danger' if a.en_retard }}">{{ a.echeance|date_fr if a.echeance else '—' }}</dd></div>
+  {% if a.mortalite_transport %}<div><dt>Mortalité à la réception</dt><dd class="text-danger">{{ a.mortalite_transport }} têtes</dd></div>{% endif %}
+</dl></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Articles</div></div><div class="table-wrap"><table class="table">
+  <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Poids</th><th class="num">Prix unitaire</th><th class="num">Montant</th>{% if F and a.statut == 'recu' %}<th class="num">Frais alloués</th><th class="num">Coût de revient unit.</th>{% endif %}<th>Lot</th></tr></thead>
+  <tbody>{% for l in a.lignes %}<tr><td class="fw-bold">{{ l.produit.nom }}</td><td class="num">{{ l.quantite|nombre }} {{ l.produit.unite }}</td><td class="num">{{ (l.poids_total|nombre ~ ' kg') if l.poids_total else '' }}</td>
+    <td class="num">{{ l.prix_unitaire|fcfa }}</td><td class="num">{{ l.montant|fcfa }}</td>
+    {% if F and a.statut == 'recu' %}<td class="num">{{ l.frais_alloues|fcfa }}</td><td class="num fw-bold text-orange">{{ l.cout_unitaire_final|fcfa }}</td>{% endif %}
+    <td>{% if lots[l.id] %}<a class="link-orange mono" href="{{ url_for('stocks.lot', lid=lots[l.id].id) }}">{{ lots[l.id].code }}</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+{% if a.statut == 'commande' and can('achats.gerer') %}
+<div class="card"><div class="card-header"><div class="card-title">Réceptionner la marchandise</div></div>
+<form method="post" action="{{ url_for('achats.receptionner', aid=a.id) }}" class="card-body" data-ajax>{{ m.ft() }}
+  <div class="form-grid">{% for l in a.lignes %}<div class="form-group"><label class="form-label">{{ l.produit.nom }} reçu(e)s</label><input class="form-control" name="q_{{ l.id }}" value="{{ l.quantite|nombre }}"></div>{% endfor %}
+    <div class="form-group"><label class="form-label">Mortalité constatée</label><input class="form-control" name="mortalite" value="0"></div>
+    <div class="form-group"><label class="form-label">Date de réception</label><input class="form-control" type="datetime-local" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}"></div>
+    <div class="form-group"><label class="form-label">Paiement immédiat</label><input class="form-control" name="paiement_montant" placeholder="0 = à crédit"></div>
+    <div class="form-group"><label class="form-label">Compte</label><select class="form-control" name="paiement_compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select><input type="hidden" name="paiement_mode" value="especes"></div>
+  </div>
+  <div class="form-actions"><button class="btn btn-primary">Valider la réception</button></div>
+</form></div>{% endif %}
+{% if a.statut == 'recu' and can('achats.gerer') %}
+<div class="card"><div class="card-header"><div class="card-title">Retour fournisseur</div></div>
+<form method="post" action="{{ url_for('achats.retour', aid=a.id) }}" class="card-body flex" data-ajax data-confirm="Enregistrer ce retour fournisseur ?">{{ m.ft() }}
+  <select class="form-control" name="ligne_id" style="width:auto">{% for l in a.lignes %}<option value="{{ l.id }}">{{ l.produit.nom }}</option>{% endfor %}</select>
+  <input class="form-control" name="quantite" placeholder="Quantité" style="width:120px"><input class="form-control" name="motif" placeholder="Motif" style="flex:1;min-width:160px">
+  <button class="btn btn-outline-orange">Retourner</button></form></div>{% endif %}
+</div>
+<div>
+<div class="card"><div class="card-body"><div class="summary">
+  <div class="summary-row"><span class="muted">Marchandises</span><b>{{ a.total_marchandises|fcfa }}</b></div>
+  <div class="summary-row"><span class="muted">Transport</span><b>{{ a.frais_transport|fcfa }}</b></div>
+  <div class="summary-row"><span class="muted">Autres frais</span><b>{{ a.autres_frais|fcfa }}</b></div>
+  {% if a.tva %}<div class="summary-row"><span class="muted">TVA</span><b>{{ a.tva|fcfa }}</b></div>{% endif %}
+  <div class="summary-row total"><span>Dû au fournisseur</span><span>{{ a.total_ttc|fcfa }}</span></div>
+  {% if a.compte_frais_id %}<div class="help">Frais réglés à part au transporteur.</div>{% endif %}
+  <div class="summary-row"><span class="muted">Payé</span><b class="text-vert">{{ a.montant_paye|fcfa }}</b></div>
+  {% if a.montant_avoirs %}<div class="summary-row"><span class="muted">Retours</span><b>{{ a.montant_avoirs|fcfa }}</b></div>{% endif %}
+  <div class="summary-row" style="font-size:1rem"><span>Reste à payer</span><b class="text-danger">{{ a.solde|fcfa }}</b></div>
+</div></div></div>
+{% if a.statut == 'recu' and a.solde > 0 and can('decaissements.gerer') %}
+<div class="card"><div class="card-header"><div class="card-title">Payer le fournisseur</div></div>
+<form method="post" action="{{ url_for('tiers.fournisseur_payer', fid=a.fournisseur_id) }}" class="card-body" data-ajax>{{ m.ft() }}<input type="hidden" name="achat_id" value="{{ a.id }}">
+  <div class="form-group"><label class="form-label">Montant</label><input class="form-control" name="montant" value="{{ a.solde|int }}"></div>
+  <div class="form-group"><select class="form-control" name="mode">{% for k, v in MODES.items() if k != 'credit' %}<option value="{{ k }}" {{ 'selected' if k == 'virement' }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="form-group"><select class="form-control" name="compte_id">{% for c in comptes %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary w-100" style="justify-content:center">Enregistrer le paiement</button></form></div>{% endif %}
+{% if a.allocations %}<div class="card"><div class="card-header"><div class="card-title">Paiements</div></div><div class="card-body">{% for al in a.allocations %}<div class="flex-between" style="font-size:.82rem;padding:.25rem 0"><span>{{ al.paiement.date|date_fr }} · {{ MODES.get(al.paiement.mode) }}</span><b class="{{ 'text-muted' if al.paiement.statut != 'valide' else '' }}">{{ al.montant|fcfa }}{{ ' (annulé)' if al.paiement.statut != 'valide' }}</b></div>{% endfor %}</div></div>{% endif %}
+{% if a.statut != 'annule' and can('achats.gerer') %}
+<form method="post" action="{{ url_for('achats.annuler', aid=a.id) }}" data-ajax data-confirm="Annuler cet achat ?" data-confirm-body="Possible seulement si la marchandise n'a pas encore été utilisée et qu'aucun paiement n'est rattaché. Les écritures seront contre-passées." data-confirm-color="#E53935">{{ m.ft() }}<input type="hidden" name="motif" value="Annulation manuelle">
+  <button class="btn btn-ghost w-100 text-danger" style="justify-content:center">Annuler l'achat</button></form>{% endif %}
+</div></div>
+{% endblock %}

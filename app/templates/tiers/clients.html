@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block page_title %}Clients{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('tiers.client_edit') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouveau client</a>{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="filter-bar"><a class="filter-btn {{ 'active' if not request.args.get('type') }}" href="?">Tous</a>{% for k, v in TYPES.items() %}<a class="filter-btn {{ 'active' if request.args.get('type') == k }}" href="?type={{ k }}">{{ v }}</a>{% endfor %}</div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Client</th><th>Type</th><th>Téléphone</th><th>Adresse</th><th>Tarif</th><th class="num">Plafond crédit</th><th class="num">Solde dû</th><th></th></tr></thead>
+    <tbody>{% for c in cs %}<tr class="{{ 'row-muted' if not c.actif }}"><td><a class="link-orange" href="{{ url_for('tiers.client_detail', cid=c.id) }}">{{ c.nom }}</a></td><td>{{ TYPES[c.type_client] }}</td><td class="nowrap">{{ c.telephone or '' }}</td><td>{{ c.adresse or '' }}</td>
+      <td><span class="badge badge-p">{{ c.tarif }}</span></td><td class="num">{{ c.plafond_credit|fcfa if c.plafond_credit else '—' }}</td>
+      <td class="num fw-bold {{ 'text-danger' if soldes[c.id] > 0 }}">{{ soldes[c.id]|fcfa if soldes[c.id] else '' }}</td>
+      <td class="nowrap">{% if can('ventes.creer') %}<a class="btn btn-orange btn-xs" href="{{ url_for('ventes.nouvelle', client=c.id) }}">Vendre</a>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="8">{{ m.empty('Aucun client.', 'users') }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

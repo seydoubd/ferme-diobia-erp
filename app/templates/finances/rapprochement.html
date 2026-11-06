@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block page_title %}Rapprochement · {{ c.nom }}{% endblock %}
+{% block content %}
+<form method="post" data-ajax>{{ m.ft() }}
+<div class="grid-21"><div class="card"><div class="card-header"><div class="card-title">Mouvements non rapprochés</div><label class="chk"><input type="checkbox" onclick="document.querySelectorAll('input[name=mvt]').forEach(i=>i.checked=this.checked)"> Tout cocher</label></div>
+<div class="table-wrap"><table class="table table-compact"><thead><tr><th></th><th>Date</th><th>Libellé</th><th class="num">Montant</th></tr></thead>
+<tbody>{% for mv in mvts %}<tr><td><input type="checkbox" name="mvt" value="{{ mv.id }}"></td><td>{{ mv.date|date_fr }}</td><td>{{ mv.libelle }}</td><td class="num fw-bold {{ 'text-vert' if mv.montant > 0 else 'text-danger' }}">{{ mv.montant|fcfa }}</td></tr>{% else %}<tr><td colspan="4" class="text-muted">Tous les mouvements sont rapprochés.</td></tr>{% endfor %}</tbody></table></div></div>
+<div><div class="card"><div class="card-body">
+  <div class="summary mb-1"><div class="summary-row"><span class="muted">Solde dans l'application</span><b>{{ solde|fcfa }}</b></div></div>
+  <div class="form-group"><label class="form-label">Date du relevé</label><input class="form-control" type="date" name="date_releve" value="{{ today() }}"></div>
+  <div class="form-group"><label class="form-label">Solde du relevé (banque, Wave, OM) ou caisse comptée</label><input class="form-control" name="solde_releve" required></div>
+  <p class="help mb-1">Cochez les opérations qui figurent sur le relevé. L'écart éventuel est enregistré et doit être justifié (frais bancaires, oubli de saisie…).</p>
+  <button class="btn btn-primary w-100" style="justify-content:center">Valider le rapprochement</button></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Historique</div></div><div class="card-body">{% for h in hist %}<div class="flex-between" style="font-size:.82rem;padding:.3rem 0;border-bottom:1px dashed var(--border)"><span>{{ h.date_releve|date_fr }} · relevé {{ h.solde_releve|fcfa }}</span><b class="{{ 'text-danger' if h.ecart|abs > 0.5 else 'text-vert' }}">écart {{ h.ecart|fcfa }}</b></div>{% else %}<span class="text-muted">—</span>{% endfor %}</div></div></div></div>
+</form>
+{% endblock %}

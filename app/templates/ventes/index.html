@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block page_title %}Ventes & factures{% endblock %}
+{% block topbar_actions %}{% if can('ventes.creer') %}<a href="{{ url_for('ventes.nouvelle') }}" class="btn btn-orange">{{ m.icon('plus', 15) }} Nouvelle vente</a>{% endif %}{% endblock %}
+{% block content %}
+{% set F = can('finances.voir') %}
+<div class="kpi-grid">
+  {{ m.kpi('Ventes', tot.nb, 'cart', 'white', 'sur la période') }}
+  {{ m.kpi('Montant facturé', tot.ca|fcfa, 'trend', 'p') }}
+  {{ m.kpi('Encaissé', tot.encaisse|fcfa, 'wallet', 'pale') }}
+  {{ m.kpi('Reste à encaisser', tot.du|fcfa, 'alert', 'opale') }}
+  {% if F %}{{ m.kpi('Marge brute', tot.marge|fcfa, 'cash', 'white', 'sur coûts réels FIFO') }}{% endif %}
+</div>
+<div class="card">
+  <form class="filter-bar" method="get">
+    <input type="date" name="debut" value="{{ debut }}" class="form-control"><input type="date" name="fin" value="{{ fin }}" class="form-control">
+    <select name="client" class="form-control"><option value="">Tous les clients</option>{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if request.args.get('client')|int == c.id }}>{{ c.nom }}</option>{% endfor %}</select>
+    <select name="canal" class="form-control"><option value="">Gros et détail</option><option value="gros" {{ 'selected' if request.args.get('canal') == 'gros' }}>Ventes en gros</option><option value="detail" {{ 'selected' if request.args.get('canal') == 'detail' }}>Ventes au détail</option></select>
+    <select name="entrepot" class="form-control"><option value="">Tous les entrepôts</option>{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if request.args.get('entrepot')|int == e.id }}>{{ e.nom }}</option>{% endfor %}</select>
+    <select name="paiement" class="form-control"><option value="">Tous les statuts</option>{% for k, v in [('payee','Payées'),('partielle','Partielles'),('impayee','Impayées'),('echue','Échues'),('annulee','Annulées')] %}<option value="{{ k }}" {{ 'selected' if request.args.get('paiement') == k }}>{{ v }}</option>{% endfor %}</select>
+    <button class="btn btn-primary btn-xs">Filtrer</button>
+  </form>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Facture</th><th>Date</th><th>Client</th><th>Canal</th><th>Produits</th><th class="num">Total</th><th class="num">Payé</th><th class="num">Reste</th>{% if F %}<th class="num">Marge</th>{% endif %}<th>Statut</th></tr></thead>
+    <tbody>{% for v in ventes %}<tr class="{{ 'row-muted' if v.statut == 'annulee' }}">
+      <td><a class="link-orange" href="{{ url_for('ventes.detail', vid=v.id) }}">{{ v.numero }}</a></td><td class="nowrap">{{ v.date|date_fr(true) }}</td><td>{{ v.client.nom }}</td>
+      <td><span class="badge {{ 'badge-p' if v.canal == 'gros' else 'badge-orange' }}">{{ 'Gros' if v.canal == 'gros' else 'Détail' }}</span></td>
+      <td style="font-size:.76rem;max-width:240px">{% for l in v.lignes %}{{ l.quantite|nombre }} {{ l.produit.unite }} {{ l.produit.nom }}{{ ', ' if not loop.last }}{% endfor %}</td>
+      <td class="num">{{ v.total_ttc|fcfa }}</td><td class="num">{{ v.montant_paye|fcfa }}</td><td class="num fw-bold {{ 'text-danger' if v.solde > 0 }}">{{ v.solde|fcfa if v.solde > 0 else '' }}</td>
+      {% if F %}<td class="num">{{ v.marge|fcfa }}</td>{% endif %}<td>{{ m.statut_vente(v) }}</td></tr>
+    {% else %}<tr><td colspan="10">{{ m.empty('Aucune vente sur la période.', 'cart') }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

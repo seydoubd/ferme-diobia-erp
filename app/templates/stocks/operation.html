@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block page_title %}Opération de stock{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set TYPES = [('mortalite','Mortalité (poulets vivants)'),('perte','Perte'),('casse','Casse / dommage'),('peremption','Péremption'),('transfert','Transfert entre entrepôts'),('congele','Congélation (frais → congelé)'),('endommage','Déclassement (→ impropre à la vente)'),('entree','Entrée de stock valorisée (stock initial)')] %}
+<form method="post" class="form-page" data-ajax style="max-width:720px">{{ m.ft() }}
+<div class="card"><div class="card-body">
+  <div class="form-group"><label class="form-label">Type d'opération</label>
+    <div class="radio-group">{% for k, v in TYPES %}<label class="radio-card {{ 'checked' if type_op == k }}"><input type="radio" name="type_op" value="{{ k }}" {{ 'checked' if type_op == k }} onchange="majType()"><span class="radio-title">{{ v }}</span></label>{% endfor %}</div></div>
+  <div class="form-grid">
+    <div class="form-group"><label class="form-label">Produit *</label><select class="form-control" name="produit_id" required>{% for p in produits %}<option value="{{ p.id }}" data-type="{{ p.type_produit }}">{{ p.nom }} ({{ p.unite }})</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label" id="lbl-src">Entrepôt *</label><select class="form-control" name="entrepot_id" required>{% for e in entrepots %}<option value="{{ e.id }}">{{ e.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group" data-show="transfert"><label class="form-label">Entrepôt de destination *</label><select class="form-control" name="entrepot_dest_id">{% for e in entrepots %}<option value="{{ e.id }}" {{ 'selected' if loop.index == 2 }}>{{ e.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Quantité *</label><input class="form-control" name="quantite" required inputmode="decimal"></div>
+    <div class="form-group" data-show="entree"><label class="form-label">Coût unitaire (FCFA)</label><input class="form-control" name="cout_unitaire" inputmode="decimal"></div>
+    <div class="form-group" data-show="entree"><label class="form-label">Date de péremption</label><input class="form-control" type="date" name="date_peremption"></div>
+    <div class="form-group" data-show="entree"><label class="form-label">Poids moyen (kg/tête, vivants)</label><input class="form-control" name="poids_moyen" inputmode="decimal"></div>
+    <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="datetime-local" name="date" value="{{ now().strftime('%Y-%m-%dT%H:%M') }}"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Motif / observation</label><input class="form-control" name="motif" placeholder="Ex. coup de chaleur, rupture de la chaîne du froid…"></div>
+  <div class="callout callout-orange help">Les pertes sont valorisées au coût réel des lots (FIFO) et comptabilisées automatiquement. Aucune quantité n'est modifiée sans mouvement tracé.</div>
+</div><div class="card-footer"><a class="btn btn-ghost" href="{{ url_for('stocks.index') }}">Annuler</a><button class="btn btn-primary">Valider l'opération</button></div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script>
+function majType(){const t=document.querySelector('input[name=type_op]:checked').value;
+document.querySelectorAll('[data-show]').forEach(e=>e.style.display=e.dataset.show===t?'':'none');
+document.querySelectorAll('.radio-card').forEach(c=>c.classList.toggle('checked',c.querySelector('input').checked));
+document.getElementById('lbl-src').textContent=t==='transfert'?'Entrepôt d’origine *':'Entrepôt *';}
+majType();</script>{% endblock %}

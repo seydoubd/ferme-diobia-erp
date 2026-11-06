@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block page_title %}Plan comptable{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+<div class="grid-21"><div class="card"><div class="table-wrap"><table class="table table-compact"><thead><tr><th>Compte</th><th>Intitulé</th><th>Classe</th></tr></thead>
+<tbody>{% for c in comptes %}<tr><td class="mono fw-bold">{{ c.numero }}</td><td>{{ c.intitule }}</td><td>{{ c.classe }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% if can('compta.gerer') %}<div class="card"><div class="card-header"><div class="card-title">Ajouter / renommer un compte</div></div><form class="card-body" method="post" data-ajax>{{ m.ft() }}
+<input class="form-control mb-1" name="numero" placeholder="Numéro (ex. 6058)" required><input class="form-control mb-1" name="intitule" placeholder="Intitulé" required><button class="btn btn-primary w-100" style="justify-content:center">Enregistrer</button></form></div>{% endif %}</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block page_title %}Lot {{ l.code }}{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<div class="grid-21">
+<div class="card"><div class="card-header"><div class="card-title">{{ l.produit.nom }} · {{ l.entrepot.nom }}</div><span class="st st-vert">{{ l.etat }}</span></div><div class="card-body"><dl class="dl">
+  <div><dt>Origine</dt><dd>{{ l.origine }}{% if l.parent %} · issu du lot <a class="link-orange" href="{{ url_for('stocks.lot', lid=l.parent.id) }}">{{ l.parent.code }}</a>{% endif %}</dd></div>
+  <div><dt>Date d'entrée</dt><dd>{{ l.date_entree|date_fr(true) }}</dd></div>
+  <div><dt>Quantité initiale</dt><dd>{{ l.qte_initiale|nombre }} {{ l.produit.unite }}</dd></div>
+  <div><dt>Quantité restante</dt><dd class="text-p">{{ l.qte_restante|nombre }} {{ l.produit.unite }}</dd></div>
+  {% if F %}<div><dt>Coût de revient unitaire</dt><dd>{{ l.cout_unitaire|fcfa }}</dd></div><div><dt>Valeur restante</dt><dd>{{ l.valeur|fcfa }}</dd></div>{% endif %}
+  <div><dt>Péremption</dt><dd>{{ l.date_peremption|date_fr if l.date_peremption else '—' }}</dd></div>
+  {% if l.poids_moyen %}<div><dt>Poids moyen</dt><dd>{{ l.poids_moyen|nombre }} kg / tête</dd></div>{% endif %}
+  <div><dt>Compte de stock</dt><dd class="mono">{{ l.compte_stock }}</dd></div>
+</dl></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Traçabilité</div></div><div class="card-body" style="font-size:.84rem;line-height:1.8">
+  {% for kind, obj in origine %}
+    {% if kind == 'transformation' %}🔪 Transformation <a class="link-orange" href="{{ url_for('transformations.detail', tid=obj.id) }}">{{ obj.numero }}</a> du {{ obj.date|date_fr }}<br>
+    {% else %}🐔 Lot vivant <a class="link-orange" href="{{ url_for('stocks.lot', lid=obj.id) }}">{{ obj.code }}</a>{% if obj.achat_ligne_id %} (achat){% endif %}<br>{% endif %}
+  {% endfor %}
+  {% for s in transfos %}🔪 Utilisé par <a class="link-orange" href="{{ url_for('transformations.detail', tid=s.transformation_id) }}">{{ s.transformation.numero }}</a> : {{ s.quantite|nombre }} têtes<br>{% endfor %}
+  {% for e in enfants %}↪ Lot dérivé <a class="link-orange" href="{{ url_for('stocks.lot', lid=e.id) }}">{{ e.code }}</a> ({{ e.entrepot.nom }}, {{ e.etat }})<br>{% endfor %}
+  {% for vl in ventes[:15] %}🧾 Vendu : <a class="link-orange" href="{{ url_for('ventes.detail', vid=vl.ligne.vente_id) }}">{{ vl.ligne.vente.numero }}</a> · {{ vl.quantite|nombre }} {{ l.produit.unite }} · {{ vl.ligne.vente.client.nom }}<br>{% endfor %}
+  {% if not (origine or transfos or enfants or ventes) %}<span class="text-muted">Aucune opération liée.</span>{% endif %}
+</div></div>
+</div>
+<div class="card"><div class="card-header"><div class="card-title">Mouvements du lot</div></div><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>Date</th><th>Type</th><th class="num">Quantité</th>{% if F %}<th class="num">Valeur</th>{% endif %}<th>Note</th><th>Par</th></tr></thead>
+  <tbody>{% for mv in mvts %}<tr><td class="nowrap">{{ mv.date|date_fr(true) }}</td><td>{{ mv.type_mvt }}</td><td class="num fw-bold {{ 'text-vert' if mv.quantite > 0 else 'text-danger' }}">{{ '+' if mv.quantite > 0 }}{{ mv.quantite|nombre }}</td>{% if F %}<td class="num">{{ mv.valeur|fcfa }}</td>{% endif %}<td>{{ mv.note or '' }}</td><td>{{ mv.user.nom if mv.user else '' }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

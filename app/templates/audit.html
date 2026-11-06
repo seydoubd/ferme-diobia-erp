@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block page_title %}Journal d'audit{% endblock %}
+{% block content %}
+<div class="card">
+  <form class="filter-bar" method="get">
+    <select name="user" class="form-control"><option value="">Tous les utilisateurs</option>{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if request.args.get('user')|int == u.id }}>{{ u.nom }}</option>{% endfor %}</select>
+    <input name="action" class="form-control" placeholder="Action (vente, annulation…)" value="{{ request.args.get('action','') }}">
+    <button class="btn btn-primary btn-xs">Filtrer</button>
+  </form>
+  <div class="table-wrap"><table class="table table-compact">
+    <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Objet</th><th>Détails</th></tr></thead>
+    <tbody>{% for a in pag.items %}<tr><td class="nowrap">{{ a.date|date_fr(true) }}</td><td>{{ a.user.nom if a.user else 'Système' }}</td>
+      <td><span class="badge badge-p">{{ a.action }}</span></td><td>{{ a.entite }}{% if a.entite_id %} #{{ a.entite_id }}{% endif %}</td>
+      <td class="mono" style="max-width:420px;white-space:normal">{{ a.details or '' }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="card-footer">{% if pag.has_prev %}<a class="btn btn-ghost btn-xs" href="?page={{ pag.prev_num }}">← Précédent</a>{% endif %}<span class="text-muted" style="font-size:.78rem">Page {{ pag.page }} / {{ pag.pages }}</span>{% if pag.has_next %}<a class="btn btn-ghost btn-xs" href="?page={{ pag.next_num }}">Suivant →</a>{% endif %}</div>
+</div>
+{% endblock %}

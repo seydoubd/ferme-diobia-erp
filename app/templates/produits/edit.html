@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block page_title %}{{ p.nom or 'Nouveau produit' }}{% endblock %}
+{% block content %}
+<form method="post" class="form-page" data-ajax>{{ m.ft() }}
+<div class="card"><div class="card-body">
+  <div class="section-title">Identification</div>
+  <div class="form-grid">
+    <div class="form-group"><label class="form-label">Nom *</label><input class="form-control" name="nom" value="{{ p.nom or '' }}" required></div>
+    <div class="form-group"><label class="form-label">Code</label><input class="form-control" name="code" value="{{ p.code or '' }}" maxlength="10"></div>
+    <div class="form-group"><label class="form-label">Catégorie</label><select class="form-control" name="categorie_id">{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if p.categorie_id == c.id }}>{{ c.nom }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Type</label><select class="form-control" name="type_produit">{% for k, v in TYPES.items() %}<option value="{{ k }}" {{ 'selected' if p.type_produit == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Unité de mesure</label><select class="form-control" name="unite">{% for u in UNITES %}<option {{ 'selected' if p.unite == u }}>{{ u }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Durée de conservation (jours, frais)</label><input class="form-control" name="duree_conservation_jours" value="{{ p.duree_conservation_jours or 0 }}"><div class="form-hint">0 = non périssable. Congelé : durée × 6.</div></div>
+  </div>
+  <div class="section-title mt-2">Tarifs (FCFA par {{ p.unite or 'unité' }})</div>
+  <div class="form-grid">
+    <div class="form-group"><label class="form-label">Prix de revient de référence</label><input class="form-control" name="prix_revient" value="{{ p.prix_revient|int if p.prix_revient else '' }}" {{ 'disabled' if not can('couts.modifier') }}><div class="form-hint">Le coût réel provient des lots (achats et transformations).</div></div>
+    <div class="form-group"><label class="form-label">Prix grossiste</label><input class="form-control" name="prix_gros" value="{{ p.prix_gros|int if p.prix_gros else '' }}"></div>
+    <div class="form-group"><label class="form-label">Prix revendeur</label><input class="form-control" name="prix_revendeur" value="{{ p.prix_revendeur|int if p.prix_revendeur else '' }}"></div>
+    <div class="form-group"><label class="form-label">Prix restaurant / hôtel</label><input class="form-control" name="prix_restaurant" value="{{ p.prix_restaurant|int if p.prix_restaurant else '' }}"></div>
+    <div class="form-group"><label class="form-label">Prix particulier (détail)</label><input class="form-control" name="prix_detail" value="{{ p.prix_detail|int if p.prix_detail else '' }}"></div>
+    <div class="form-group"><label class="form-label">Seuil d'alerte de stock</label><input class="form-control" name="seuil_alerte" value="{{ p.seuil_alerte|nombre if p.seuil_alerte else '' }}"></div>
+    <div class="form-group"><label class="form-label">Coefficient de valeur (répartition des coûts)</label><input class="form-control" name="coef_valeur" value="{{ p.coef_valeur|nombre }}"><div class="form-hint">Ex. blanc 1,6 · cuisses 1,1 · carcasses 0,25. Utilisé avec la méthode « coefficients ».</div></div>
+  </div>
+  <div class="flex mt-1" style="gap:1.25rem">
+    <label class="chk"><input type="checkbox" name="vendable" {{ 'checked' if p.vendable }}> Vendable</label>
+    <label class="chk"><input type="checkbox" name="soumis_tva" {{ 'checked' if p.soumis_tva }}> Soumis à TVA</label>
+    <label class="chk"><input type="checkbox" name="actif" {{ 'checked' if p.actif }}> Actif</label>
+  </div>
+</div>
+<div class="card-footer">
+  {% if p.id %}<button form="del" class="btn btn-ghost text-danger">Supprimer</button>{% endif %}
+  <a href="{{ url_for('produits.index') }}" class="btn btn-ghost">Annuler</a><button class="btn btn-primary" type="submit">Enregistrer</button>
+</div></div></form>
+{% if p.id %}<form id="del" method="post" action="{{ url_for('produits.supprimer', pid=p.id) }}" data-confirm="Supprimer ce produit ?" data-confirm-body="S'il a déjà un historique, il sera seulement désactivé." data-confirm-color="#E53935">{{ m.ft() }}</form>{% endif %}
+{% endblock %}

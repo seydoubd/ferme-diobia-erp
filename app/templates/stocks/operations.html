@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block page_title %}Pertes, transferts, ajustements{% endblock %}
+{% block topbar_actions %}{% if can('stock.mouvement') %}<a href="{{ url_for('stocks.operation') }}" class="btn btn-primary">{{ m.icon('plus', 15) }} Nouvelle opération</a>{% endif %}{% endblock %}
+{% block content %}
+{% include 'stocks/_tabs.html' %}
+{% set F = can('finances.voir') %}
+<div class="card"><div class="table-wrap"><table class="table table-compact">
+  <thead><tr><th>N°</th><th>Date</th><th>Type</th><th>Produit</th><th>Entrepôt</th><th class="num">Quantité</th>{% if F %}<th class="num">Valeur</th>{% endif %}<th>Motif</th><th>Par</th></tr></thead>
+  <tbody>{% for o in ops %}<tr class="{{ 'row-muted' if o.statut == 'annule' }}"><td class="mono">{{ o.numero }}</td><td class="nowrap">{{ o.date|date_fr(true) }}</td>
+    <td><span class="badge {{ 'badge-danger' if o.type_op in ('perte','mortalite','peremption','casse') else 'badge-p' }}">{{ o.type_op }}</span></td>
+    <td>{{ o.produit.nom }}</td><td>{{ o.entrepot.nom }}{% if o.entrepot_dest %} → {{ o.entrepot_dest.nom }}{% endif %}</td>
+    <td class="num">{{ o.quantite|nombre }} {{ o.produit.unite }}</td>{% if F %}<td class="num">{{ o.valeur|fcfa }}</td>{% endif %}<td>{{ o.motif or '' }}</td><td>{{ o.user.nom if o.user else '' }}</td></tr>
+  {% else %}<tr><td colspan="9" class="text-muted">Aucune opération.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block page_title %}Écriture {{ e.numero }}{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+<div class="card"><div class="card-header"><div><div class="card-title">{{ e.libelle }}</div><div class="page-sub">{{ e.journal.libelle }} · {{ e.date|date_fr }} · origine : {{ e.source_type or 'saisie manuelle' }}{% if e.source_id %} #{{ e.source_id }}{% endif %} · {{ e.nature }}</div></div>{{ m.badge_statut(e.statut) }}</div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Compte</th><th>Intitulé</th><th>Libellé</th><th>Tiers</th><th class="num">Débit</th><th class="num">Crédit</th></tr></thead>
+<tbody>{% for l in e.lignes %}<tr><td class="mono fw-bold">{{ l.compte_numero }}</td><td>{{ l.compte.intitule }}</td><td>{{ l.libelle }}</td><td>{{ l.tiers or '' }}</td><td class="num">{{ l.debit|fcfa if l.debit }}</td><td class="num">{{ l.credit|fcfa if l.credit }}</td></tr>{% endfor %}</tbody>
+<tfoot><tr><td colspan="4">Total</td><td class="num">{{ e.total_debit|fcfa }}</td><td class="num">{{ e.total_credit|fcfa }}</td></tr></tfoot></table></div>
+<div class="card-footer">
+  {% if e.statut == 'brouillard' and can('compta.gerer') %}<form method="post" action="{{ url_for('compta.valider') }}" data-ajax>{{ m.ft() }}<input type="hidden" name="ids" value="{{ e.id }}"><button class="btn btn-primary">Valider</button></form>{% endif %}
+  {% if not e.source_type and not e.contre_passation_de and can('compta.gerer') %}<form method="post" action="{{ url_for('compta.contre_passer', eid=e.id) }}" data-ajax data-confirm="Contre-passer cette écriture ?">{{ m.ft() }}<input type="hidden" name="motif" value="Correction"><button class="btn btn-outline-orange">Contre-passer</button></form>{% endif %}
+</div></div>
+{% if e.valide_le %}<p class="help">Validée le {{ e.valide_le|date_fr(true) }}.</p>{% endif %}
+{% if liees %}<div class="card"><div class="card-header"><div class="card-title">Écritures de la même opération</div></div><div class="card-body">{% for x in liees %}<a class="link-orange mono" href="{{ url_for('compta.ecriture', eid=x.id) }}">{{ x.numero }}</a> · {{ x.libelle }}<br>{% endfor %}</div></div>{% endif %}
+{% endblock %}

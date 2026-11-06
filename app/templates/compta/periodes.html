@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block page_title %}Périodes comptables{% endblock %}
+{% block content %}
+{% include 'compta/_tabs.html' %}
+<div class="card"><div class="table-wrap"><table class="table"><thead><tr><th>Période</th><th class="num">Écritures</th><th class="num">À valider</th><th>Statut</th><th></th></tr></thead>
+<tbody>{% for p in ps %}<tr><td class="fw-bold">{{ MOIS_FR[p.mois]|capitalize }} {{ p.annee }}</td><td class="num">{{ stats[p.id].total }}</td><td class="num {{ 'text-orange fw-bold' if stats[p.id].brouillard }}">{{ stats[p.id].brouillard }}</td>
+<td>{% if p.cloturee %}<span class="st st-gris">Clôturée le {{ p.cloturee_le|date_fr }}</span>{% else %}<span class="st st-vert">Ouverte</span>{% endif %}</td>
+<td>{% if not p.cloturee and can('compta.gerer') %}<form method="post" data-ajax data-confirm="Clôturer {{ MOIS_FR[p.mois] }} {{ p.annee }} ?" data-confirm-body="Après clôture, plus aucune opération ne pourra être datée dans cette période. Toutes les écritures doivent être validées." data-confirm-color="#E07B00">{{ m.ft() }}<input type="hidden" name="annee" value="{{ p.annee }}"><input type="hidden" name="mois" value="{{ p.mois }}"><button class="btn btn-outline-orange btn-xs">Clôturer</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+<p class="help">Procédure de clôture mensuelle : 1) inventaire physique des entrepôts, 2) rapprochements bancaires, Wave et Orange Money, 3) validation des écritures, 4) clôture. Le système vérifie l'équilibre de la période.</p>
+{% endblock %}

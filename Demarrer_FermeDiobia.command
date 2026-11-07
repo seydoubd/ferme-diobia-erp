@@ -1,7 +1,7 @@
 #!/bin/bash
 # Double-cliquez sur ce fichier pour lancer La Ferme Diobia – ERP sur ce Mac.
 cd "$(dirname "$0")"
-PORT=5060
+PORT=8090
 echo "🐔 La Ferme Diobia – ERP avicole"
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -10,6 +10,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 lsof -ti:$PORT | xargs kill -9 2>/dev/null
+lsof -ti:5060 | xargs kill -9 2>/dev/null
 
 if [ ! -d ".venv" ]; then
   echo "📦 Première installation (une seule fois, environ 1 minute)…"

@@ -9,7 +9,7 @@ Design et technologies repris de **Teranga Sip Manager** (Python / Flask, applic
 ## Démarrer sur le Mac
 
 1. Double-cliquez sur **`Demarrer_FermeDiobia.command`**. La première fois, macOS peut demander une confirmation : clic droit → *Ouvrir*.
-2. Le navigateur s'ouvre sur `http://127.0.0.1:5060`.
+2. Le navigateur s'ouvre sur `http://127.0.0.1:8090`.
 3. Connectez-vous :
 
 | Rôle | E-mail | Mot de passe |

@@ -50,7 +50,7 @@ CATEGORIES_DEPENSES = [
 ]
 
 
-def init_base():
+def init_base(creer_admin=True):
     """Idempotent : crée les référentiels manquants sans toucher aux données existantes."""
     for k, v in PARAMS.items():
         if not db.session.get(Parametre, k):
@@ -74,7 +74,7 @@ def init_base():
                             ("Wave", "wave", "5521", "WV"), ("Orange Money", "orange_money", "5522", "OM")]:
         if not CompteTresorerie.query.filter_by(type_compte=t).first():
             db.session.add(CompteTresorerie(nom=nom, type_compte=t, compte_comptable=cpt, journal_code=jr))
-    if not User.query.filter_by(role="admin").first():
+    if creer_admin and not User.query.filter_by(role="admin").first():
         u = User(nom="Administrateur", email=os.environ.get("ADMIN_EMAIL", "admin@fermediobia.sn"), role="admin")
         u.set_password(os.environ.get("ADMIN_PASSWORD", "Diobia2026!"))
         db.session.add(u)

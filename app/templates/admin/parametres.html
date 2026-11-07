@@ -11,6 +11,7 @@
   <div class="form-group"><label class="form-label">Taux de TVA (%)</label><input class="form-control" name="tva_taux" value="{{ params.get('tva_taux', '18') }}"></div>
   <div class="form-group"><label class="form-label">Taux d'IS pour le bénéfice estimé (%)</label><input class="form-control" name="taux_is" value="{{ params.get('taux_is', '30') }}"></div>
   <div class="form-group"><label class="form-label">Alerte péremption (jours)</label><input class="form-control" name="alerte_peremption_jours" value="{{ params.get('alerte_peremption_jours', '2') }}"></div>
+  <div class="form-group" style="grid-column:1/-1"><label class="chk"><input type="checkbox" name="connexion_obligatoire" {{ 'checked' if params.get('connexion_obligatoire') == '1' }}> Exiger une connexion (identifiant et mot de passe) pour ouvrir l'application</label><div class="form-hint">Désactivé : l'application s'ouvre directement. À activer si l'application est en ligne ou utilisée par plusieurs personnes. Avant d'activer, définissez votre mot de passe dans Utilisateurs.</div></div>
   <div class="form-group" style="grid-column:1/-1"><label class="chk"><input type="checkbox" name="compta_validation_auto" {{ 'checked' if params.get('compta_validation_auto') == '1' }}> Valider automatiquement les écritures générées (sinon validation par le comptable)</label></div>
 </div></div><div class="card-footer"><button class="btn btn-primary">Enregistrer</button></div></div></form>
 <div>

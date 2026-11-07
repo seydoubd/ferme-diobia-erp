@@ -113,3 +113,15 @@ def test_simulation_transformation(demo):
     r = c.post("/transformations/simuler", json=body)
     d = r.json
     assert d["ok"] and d["rendement"] == 60 and abs(sum(l["cout"] for l in d["lignes"]) - d["cout_total"]) < 0.01
+
+
+def test_mode_sans_connexion(app):
+    """Par défaut (paramètre désactivé), l'application s'ouvre directement sur le tableau de bord."""
+    from app.utils import set_param
+    set_param("connexion_obligatoire", "0")
+    db.session.commit()
+    c = app.test_client()
+    assert c.get("/dashboard").status_code == 200
+    assert c.get("/ventes").status_code == 200
+    assert c.get("/login").headers["Location"].endswith("/dashboard")
+    assert "Déconnexion" not in c.get("/dashboard").data.decode()

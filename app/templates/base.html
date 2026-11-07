@@ -68,9 +68,9 @@
         <span class="user-avatar">{{ current_user.nom[:1]|upper }}</span>
         <span class="user-meta"><b>{{ current_user.nom }}</b><span>{{ ROLES[current_user.role].libelle }}</span></span>
       </div>
-      <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost" style="width:100%;justify-content:center;font-size:.75rem;padding:.38rem">
+      {% if connexion_obligatoire %}<a href="{{ url_for('auth.logout') }}" class="btn btn-ghost" style="width:100%;justify-content:center;font-size:.75rem;padding:.38rem">
         {{ m.icon('logout', 13) }} Déconnexion
-      </a>
+      </a>{% endif %}
     </div>
   </aside>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>

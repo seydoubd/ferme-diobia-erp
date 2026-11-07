@@ -9,8 +9,41 @@ bp = Blueprint("auth", __name__)
 _echecs = {}
 
 
+@bp.route("/installation", methods=["GET", "POST"])
+def installation():
+    """Premier lancement en ligne : création du compte administrateur (uniquement si aucun utilisateur n'existe)."""
+    if User.query.count():
+        return redirect(url_for("auth.login"))
+    if request.method == "POST":
+        nom = (request.form.get("nom") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+        pwd = request.form.get("password") or ""
+        if not nom or "@" not in email:
+            flash("Nom et e-mail valides obligatoires.", "error")
+        elif len(pwd) < 8:
+            flash("Le mot de passe doit contenir au moins 8 caractères.", "error")
+        elif pwd != request.form.get("confirmation"):
+            flash("La confirmation ne correspond pas.", "error")
+        else:
+            u = User(nom=nom, email=email, role="admin")
+            u.set_password(pwd)
+            db.session.add(u)
+            db.session.commit()
+            login_user(u)
+            audit("installation", "user", u.id)
+            db.session.commit()
+            flash("Compte administrateur créé. Bienvenue !", "success")
+            return redirect(url_for("main.dashboard"))
+    return render_template("installation.html")
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
+    from ..utils import get_param
+    if get_param("connexion_obligatoire", "0") != "1":
+        return redirect(url_for("main.dashboard"))
+    if not User.query.count():
+        return redirect(url_for("auth.installation"))
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))
     if request.method == "POST":

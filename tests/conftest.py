@@ -14,6 +14,10 @@ def app():
     app = create_app({"TESTING": True, "WTF_CSRF_ENABLED": False,
                       "SQLALCHEMY_DATABASE_URI": "sqlite:///" + os.path.join(d, "test.db")})
     with app.app_context():
+        from app.utils import set_param
+        from app.extensions import db
+        set_param("connexion_obligatoire", "1")  # les tests de droits exigent une vraie connexion
+        db.session.commit()
         yield app
 
 

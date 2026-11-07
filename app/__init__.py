@@ -26,10 +26,12 @@ def create_app(config=None):
     os.makedirs(app.instance_path, exist_ok=True)
     db_url = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
               or "sqlite:///" + os.path.join(app.instance_path, "diobia.db"))
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    # Pilote PostgreSQL explicite (psycopg2), quel que soit le format d'URL fourni par l'hébergeur
+    for prefix in ("postgres://", "postgresql://"):
+        if db_url.startswith(prefix):
+            db_url = "postgresql+psycopg2://" + db_url[len(prefix):]
     app.config.update(
-        SECRET_KEY=os.environ.get("SECRET_KEY") or _secret(app.instance_path),
+        SECRET_KEY=os.environ.get("SECRET_KEY") or (_secret_from(db_url) if serverless else _secret(app.instance_path)),
         SQLALCHEMY_DATABASE_URI=db_url,
         SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
         UPLOAD_FOLDER=os.environ.get("UPLOAD_FOLDER") or os.path.join(app.instance_path, "justificatifs"),
@@ -58,13 +60,32 @@ def create_app(config=None):
     app.jinja_env.filters.update(fcfa=fcfa, nombre=nombre, date_fr=date_fr)
     app.jinja_env.globals.update(MOIS_FR=MOIS_FR, now=datetime.now, today=date.today)
 
+    @app.before_request
+    def acces_direct():
+        """Mode sans connexion (par défaut) : ouverture directe en administrateur.
+        La connexion obligatoire se réactive dans Paramètres."""
+        if request.endpoint in (None, "static", "manifest", "sw") or current_user.is_authenticated:
+            return
+        if get_param("connexion_obligatoire", "0") == "1":
+            return
+        from flask_login import login_user
+        u = models.User.query.filter_by(role="admin", actif=True).order_by(models.User.id).first()
+        if not u:
+            import secrets
+            u = models.User(nom="Administrateur", email="admin@fermediobia.sn", role="admin")
+            u.set_password(secrets.token_urlsafe(24))
+            db.session.add(u)
+            db.session.commit()
+        login_user(u, remember=True)
+
     @app.context_processor
     def ctx():
         from .permissions import ROLES
         return {"can": (lambda p: current_user.is_authenticated and current_user.can(p)),
                 "form_token": new_form_token, "ROLES": ROLES,
                 "nom_entreprise": get_param("nom_entreprise", "La Ferme Diobia"),
-                "demo_active": get_param("demo_chargee", "0") == "1", "get_tva": tva_taux()}
+                "demo_active": get_param("demo_chargee", "0") == "1", "get_tva": tva_taux(),
+                "connexion_obligatoire": get_param("connexion_obligatoire", "0") == "1"}
 
     from .routes import register_blueprints
     register_blueprints(app)
@@ -102,8 +123,14 @@ def create_app(config=None):
     with app.app_context():
         db.create_all()
         from .seed import init_base
-        init_base()
+        init_base(creer_admin=not serverless or bool(os.environ.get("ADMIN_PASSWORD")))
     return app
+
+
+def _secret_from(db_url):
+    """Clé stable dérivée de l'URL de la base (secrète) quand SECRET_KEY n'est pas fournie (Vercel)."""
+    import hashlib
+    return hashlib.sha256(("diobia::" + db_url).encode()).hexdigest()
 
 
 def _secret(path):

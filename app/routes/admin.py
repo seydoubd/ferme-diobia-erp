@@ -40,6 +40,7 @@ def parametres():
             set_param("tva_taux", taux)
             set_param("taux_is", to_float(f.get("taux_is"), 30))
             set_param("compta_validation_auto", "1" if f.get("compta_validation_auto") else "0")
+            set_param("connexion_obligatoire", "1" if f.get("connexion_obligatoire") else "0")
             set_param("alerte_peremption_jours", int(to_float(f.get("alerte_peremption_jours"), 2)))
             audit("parametres", "parametre", None, {k: f.get(k) for k in f if k not in ("csrf_token", "_ft")})
             return True

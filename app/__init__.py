@@ -18,10 +18,14 @@ def _sqlite_pragmas(dbapi_conn, _):
 
 
 def create_app(config=None):
-    app = Flask(__name__, instance_relative_config=True)
+    serverless = bool(os.environ.get("VERCEL"))
+    # Sur Vercel, seul /tmp est inscriptible : la base doit être PostgreSQL (DATABASE_URL)
+    app = Flask(__name__, instance_relative_config=True,
+                instance_path="/tmp/diobia-instance" if serverless else None)
     app.url_map.strict_slashes = False
     os.makedirs(app.instance_path, exist_ok=True)
-    db_url = os.environ.get("DATABASE_URL") or "sqlite:///" + os.path.join(app.instance_path, "diobia.db")
+    db_url = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+              or "sqlite:///" + os.path.join(app.instance_path, "diobia.db"))
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     app.config.update(

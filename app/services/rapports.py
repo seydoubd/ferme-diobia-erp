@@ -43,9 +43,9 @@ def generer(code, debut, fin):
             j["tva"] += v.tva
             j["cout"] += v.cout_total
             j["gros" if v.canal == "gros" else "detail"] += v.total_ht
-        enc = dict(db.session.query(func.date(Paiement.date), func.sum(Paiement.montant)).filter(
+        enc = {str(k): v for k, v in db.session.query(func.date(Paiement.date), func.sum(Paiement.montant)).filter(
             Paiement.sens == "encaissement", Paiement.statut == "valide", Paiement.date >= d0, Paiement.date <= d1)
-            .group_by(func.date(Paiement.date)).all())
+            .group_by(func.date(Paiement.date)).all()}
         rep["colonnes"] = C(("Date", "date"), ("Nb ventes", "num"), ("Ventes en gros", "fcfa"), ("Ventes au détail", "fcfa"),
                             ("CA HT", "fcfa"), ("Encaissements du jour", "fcfa"), ("Coût réel", "fcfa"), ("Marge brute", "fcfa"))
         for d in sorted(jours):
